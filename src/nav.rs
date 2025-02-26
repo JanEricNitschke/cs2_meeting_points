@@ -18,7 +18,7 @@ pub struct DynamicAttributeFlags(u32);
 
 impl DynamicAttributeFlags {
     pub fn new<T: Into<u32>>(value: T) -> Self {
-        DynamicAttributeFlags(value.into())
+        Self(value.into())
     }
 }
 
@@ -46,8 +46,8 @@ impl PartialEq for NavArea {
 }
 
 impl NavArea {
-    pub fn new(area_id: u32, dynamic_attribute_flags: DynamicAttributeFlags) -> Self {
-        NavArea {
+    pub const fn new(area_id: u32, dynamic_attribute_flags: DynamicAttributeFlags) -> Self {
+        Self {
             area_id,
             hull_index: 0,
             dynamic_attribute_flags,
@@ -80,6 +80,7 @@ impl NavArea {
         area.abs() / 2.0
     }
 
+    #[allow(clippy::cast_precision_loss)]
     /// Computes the centroid of the polygon (averaging all corners).
     pub fn centroid(&self) -> Position {
         if self.corners.is_empty() {
@@ -114,7 +115,7 @@ impl NavArea {
 impl std::fmt::Display for NavArea {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut conn_ids: Vec<_> = self.connected_areas().into_iter().collect();
-        conn_ids.sort();
+        conn_ids.sort_unstable();
         write!(
             f,
             "NavArea(id={}, connected_ids={:?}, points={:?}, size={})",
@@ -147,7 +148,7 @@ pub struct Nav {
 }
 
 impl Nav {
-    pub const MAGIC: u32 = 0xFEEDFACE;
+    pub const MAGIC: u32 = 0xFEED_FACE;
 
     pub fn new(
         version: u32,
@@ -158,19 +159,19 @@ impl Nav {
         let mut graph = DiGraphMap::new();
 
         // Add nodes (with attributes added as node weights)
-        for (area_id, area) in areas.iter() {
+        for (area_id, area) in &areas {
             graph.add_node(*area_id);
         }
 
         // Add edges
-        for (area_id, area) in areas.iter() {
+        for (area_id, area) in &areas {
             for connected_area_id in area.connected_areas() {
                 let connected_area = areas
                     .get(&connected_area_id)
                     .expect("Area missing in graph");
                 let dx = area.centroid().x - connected_area.centroid().x;
                 let dy = area.centroid().y - connected_area.centroid().y;
-                let dist_weight = (dx * dx + dy * dy).sqrt();
+                let dist_weight = dx.hypot(dy);
 
                 let area_relative_speed = if DynamicAttributeFlags::new(CROUCHING_ATTRIBUTE_FLAG)
                     == area.dynamic_attribute_flags
@@ -187,7 +188,7 @@ impl Nav {
                         CROUCHING_SPEED
                     } else {
                         RUNNING_SPEED
-                    } / RUNNING_SPEED as f64;
+                    } / RUNNING_SPEED;
 
                 let area_time_adjusted_distance = dist_weight / area_relative_speed;
                 let connected_area_time_adjusted_distance =
@@ -199,7 +200,7 @@ impl Nav {
             }
         }
 
-        Nav {
+        Self {
             version,
             sub_version,
             areas,

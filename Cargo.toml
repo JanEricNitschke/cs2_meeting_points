@@ -1,11 +1,18 @@
 [package]
-name    = "cs2_meeting_points"
-version = "0.1.0"
-edition = "2024"
+name        = "cs2_meeting_points"
+version     = "0.1.0"
+edition     = "2024"
+description = "Package to produce CS2 meeting point plots."
+license     = "MIT"
+authors     = ["Jan-Eric <janericnitschke@gmail.com"]
+readme      = "README.md"
+repository  = "https://github.com/JanEricNitschke/cs2_meeting_points"
+keywords    = ["CS2", "Visualization"]
+categories  = ["CS2", "Visualization"]
 
 [dependencies]
-bincode = "=1.3.3"
-geo = "0.29.3"
+bincode   = "=1.3.3"
+geo       = "0.29.3"
 itertools = "0.14.0"
-petgraph = "0.7.1"
-serde      = { version = "1.0.218", features = ["derive"] }
+petgraph  = "0.7.1"
+serde     = { version = "1.0.218", features = ["derive"] }

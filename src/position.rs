@@ -10,24 +10,24 @@ pub struct Position {
 }
 
 impl Position {
-    pub fn new(x: f64, y: f64, z: f64) -> Self {
+    pub const fn new(x: f64, y: f64, z: f64) -> Self {
         Self { x, y, z }
     }
 
-    pub fn distance(&self, other: &Position) -> f64 {
+    pub fn distance(&self, other: &Self) -> f64 {
         (*self - *other).length()
     }
 
-    pub fn distance_2d(&self, other: &Position) -> f64 {
-        ((self.x - other.x).powi(2) + (self.y - other.y).powi(2)).sqrt()
+    pub fn distance_2d(&self, other: &Self) -> f64 {
+        (self.x - other.x).hypot(self.y - other.y)
     }
 
-    pub fn dot(&self, other: &Position) -> f64 {
+    pub fn dot(&self, other: &Self) -> f64 {
         self.x * other.x + self.y * other.y + self.z * other.z
     }
 
-    pub fn cross(&self, other: &Position) -> Position {
-        Position::new(
+    pub fn cross(&self, other: &Self) -> Self {
+        Self::new(
             self.y * other.z - self.z * other.y,
             self.z * other.x - self.x * other.z,
             self.x * other.y - self.y * other.x,
@@ -38,19 +38,19 @@ impl Position {
         (self.x.powi(2) + self.y.powi(2) + self.z.powi(2)).sqrt()
     }
 
-    pub fn normalize(&self) -> Position {
+    pub fn normalize(&self) -> Self {
         let len = self.length();
         if len == 0.0 {
-            return Position::new(0.0, 0.0, 0.0);
+            return Self::new(0.0, 0.0, 0.0);
         }
-        Position::new(self.x / len, self.y / len, self.z / len)
+        Self::new(self.x / len, self.y / len, self.z / len)
     }
 
-    pub fn to_point_2d(&self) -> Point {
+    pub fn to_point_2d(self) -> Point {
         Point::new(self.x, self.y)
     }
 
-    pub fn can_jump_to(&self, other: &Position) -> bool {
+    pub fn can_jump_to(&self, other: &Self) -> bool {
         let h_distance = self.distance_2d(other) - (PLAYER_WIDTH * 2.0_f64.sqrt());
         if h_distance <= 0.0 {
             return true;
@@ -63,17 +63,17 @@ impl Position {
 }
 
 impl Add for Position {
-    type Output = Position;
+    type Output = Self;
 
-    fn add(self, other: Position) -> Position {
-        Position::new(self.x + other.x, self.y + other.y, self.z + other.z)
+    fn add(self, other: Self) -> Self {
+        Self::new(self.x + other.x, self.y + other.y, self.z + other.z)
     }
 }
 
 impl Sub for Position {
-    type Output = Position;
+    type Output = Self;
 
-    fn sub(self, other: Position) -> Position {
-        Position::new(self.x - other.x, self.y - other.y, self.z - other.z)
+    fn sub(self, other: Self) -> Self {
+        Self::new(self.x - other.x, self.y - other.y, self.z - other.z)
     }
 }

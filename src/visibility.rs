@@ -24,13 +24,14 @@ impl Triangle {
     }
 }
 
+#[allow(clippy::large_stack_arrays)]
 /// Read triangles from a .tri file.
 pub fn read_tri_file<P: AsRef<Path>>(tri_file: P) -> Vec<Triangle> {
     const BUFFER_SIZE: usize = 1000;
-    let mut triangles = Vec::new();
-    let mut file = fs::File::open(tri_file).expect("Unable to open tri file");
     // 9 f32 values per triangle, each f32 is 4 bytes.
     const CHUNK_SIZE: usize = BUFFER_SIZE * 9 * 4;
+    let mut triangles = Vec::new();
+    let mut file = fs::File::open(tri_file).expect("Unable to open tri file");
     let mut buffer = [0u8; CHUNK_SIZE];
 
     loop {
@@ -48,9 +49,21 @@ pub fn read_tri_file<P: AsRef<Path>>(tri_file: P) -> Vec<Triangle> {
                 values[i] = f32::from_ne_bytes(chunk.try_into().unwrap());
             }
             triangles.push(Triangle {
-                p1: Position::new(values[0] as f64, values[1] as f64, values[2] as f64),
-                p2: Position::new(values[3] as f64, values[4] as f64, values[5] as f64),
-                p3: Position::new(values[6] as f64, values[7] as f64, values[8] as f64),
+                p1: Position::new(
+                    f64::from(values[0]),
+                    f64::from(values[1]),
+                    f64::from(values[2]),
+                ),
+                p2: Position::new(
+                    f64::from(values[3]),
+                    f64::from(values[4]),
+                    f64::from(values[5]),
+                ),
+                p3: Position::new(
+                    f64::from(values[6]),
+                    f64::from(values[7]),
+                    f64::from(values[8]),
+                ),
             });
         }
     }
@@ -68,7 +81,7 @@ pub struct Edge {
 
 // ---------- AABB ----------
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct AABB {
+pub struct Aabb {
     pub min_point: Position,
     pub max_point: Position,
 }
@@ -85,8 +98,8 @@ fn check_axis(origin: f64, direction: f64, min_val: f64, max_val: f64, epsilon: 
     (t1.min(t2), t1.max(t2))
 }
 
-impl AABB {
-    pub fn from_triangle(triangle: &Triangle) -> Self {
+impl Aabb {
+    pub const fn from_triangle(triangle: &Triangle) -> Self {
         let min_point = Position::new(
             triangle.p1.x.min(triangle.p2.x).min(triangle.p3.x),
             triangle.p1.y.min(triangle.p2.y).min(triangle.p3.y),
@@ -97,7 +110,7 @@ impl AABB {
             triangle.p1.y.max(triangle.p2.y).max(triangle.p3.y),
             triangle.p1.z.max(triangle.p2.z).max(triangle.p3.z),
         );
-        AABB {
+        Self {
             min_point,
             max_point,
         }
@@ -135,7 +148,7 @@ impl AABB {
     }
 }
 
-impl std::fmt::Display for AABB {
+impl std::fmt::Display for Aabb {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -148,7 +161,7 @@ impl std::fmt::Display for AABB {
 // ---------- BVHNode ----------
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct BVHNode {
-    pub aabb: AABB,
+    pub aabb: Aabb,
     pub triangle: Option<Triangle>,
     pub left: Option<Box<BVHNode>>,
     pub right: Option<Box<BVHNode>>,
@@ -162,19 +175,19 @@ pub struct VisibilityChecker {
 }
 
 impl VisibilityChecker {
-    /// Construct a new VisibilityChecker from a file of triangles or an existing list.
+    /// Construct a new `VisibilityChecker` from a file of triangles or an existing list.
     pub fn new(tri_file: &Path) -> Self {
         let triangles = read_tri_file(tri_file);
 
         let n_triangles = triangles.len();
         let root = Self::build_bvh(triangles);
-        VisibilityChecker { n_triangles, root }
+        Self { n_triangles, root }
     }
 
     pub fn build_bvh(triangles: Vec<Triangle>) -> BVHNode {
         if triangles.len() == 1 {
             return BVHNode {
-                aabb: AABB::from_triangle(&triangles[0]),
+                aabb: Aabb::from_triangle(&triangles[0]),
                 triangle: Some(triangles[0].clone()),
                 left: None,
                 right: None,
@@ -182,7 +195,7 @@ impl VisibilityChecker {
         }
 
         // Compute centroids.
-        let centroids: Vec<Position> = triangles.iter().map(|t| t.get_centroid()).collect();
+        let centroids: Vec<Position> = triangles.iter().map(Triangle::get_centroid).collect();
 
         // Find spread along each axis.
         let (min_x, max_x) = centroids
@@ -252,7 +265,7 @@ impl VisibilityChecker {
         );
 
         BVHNode {
-            aabb: AABB {
+            aabb: Aabb {
                 min_point,
                 max_point,
             },
@@ -265,7 +278,6 @@ impl VisibilityChecker {
     /// Check for ray-triangle intersection.
     /// Returns Some(distance) if intersecting; otherwise None.
     pub fn ray_triangle_intersection(
-        &self,
         ray_origin: &Position,
         ray_direction: &Position,
         triangle: &Triangle,
@@ -283,7 +295,7 @@ impl VisibilityChecker {
         let f = 1.0 / a;
         let s = *ray_origin - triangle.p1;
         let u = f * s.dot(&h);
-        if u < 0.0 || u > 1.0 {
+        if !(0.0..=1.0).contains(&u) {
             return None;
         }
 
@@ -299,7 +311,6 @@ impl VisibilityChecker {
 
     /// Traverse the BVH tree to check for ray intersections.
     fn traverse_bvh(
-        &self,
         node: &BVHNode,
         ray_origin: &Position,
         ray_direction: &Position,
@@ -310,19 +321,19 @@ impl VisibilityChecker {
         }
 
         if let Some(ref tri) = node.triangle {
-            if let Some(t) = self.ray_triangle_intersection(ray_origin, ray_direction, tri) {
+            if let Some(t) = Self::ray_triangle_intersection(ray_origin, ray_direction, tri) {
                 return t <= max_distance;
             }
             return false;
         }
 
-        let left_hit = self.traverse_bvh(
+        let left_hit = Self::traverse_bvh(
             node.left.as_ref().unwrap(),
             ray_origin,
             ray_direction,
             max_distance,
         );
-        let right_hit = self.traverse_bvh(
+        let right_hit = Self::traverse_bvh(
             node.right.as_ref().unwrap(),
             ray_origin,
             ray_direction,
@@ -341,7 +352,7 @@ impl VisibilityChecker {
         }
         direction = direction.normalize();
         // If any intersection is found along the ray, then the segment is not visible.
-        !self.traverse_bvh(&self.root, &start, &direction, distance)
+        !Self::traverse_bvh(&self.root, &start, &direction, distance)
     }
 
     pub fn save_to_binary<P: AsRef<Path>>(&self, filename: P) {
@@ -369,7 +380,7 @@ pub fn load_vis_checker(map_name: &str) -> VisibilityChecker {
     let tri_path = parent
         .join("data")
         .join("tri")
-        .join(format!("{}.tri", map_name));
+        .join(format!("{map_name}.tri"));
     let mut binary_path = tri_path.clone();
     binary_path.set_extension("vis");
 

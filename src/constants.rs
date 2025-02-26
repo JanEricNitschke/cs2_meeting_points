@@ -1,5 +1,3 @@
-/// Module for constants in Counter-Strike 2
-
 // Sides
 pub const CT_SIDE: &str = "ct";
 pub const T_SIDE: &str = "t";
@@ -25,7 +23,6 @@ pub const JUMP_HEIGHT: f64 = 55.83;
 
 /// 0.5m * v^2 = m * g * h
 /// v = sqrt(2 * g * h)
-#[inline(always)]
 pub fn jump_speed() -> f64 {
     (2.0 * GRAVITY * JUMP_HEIGHT).sqrt()
 }
@@ -35,4 +32,4 @@ pub const PLAYER_WIDTH: f64 = 32.0;
 
 // https://developer.valvesoftware.com/wiki/Counter-Strike:_Global_Offensive/Mapper%27s_Reference
 pub const PLAYER_HEIGHT: f64 = 72.0;
-pub const PLAYER_EYE_LEVEL: f64 = 64.093811;
+pub const PLAYER_EYE_LEVEL: f64 = 64.093_811;
