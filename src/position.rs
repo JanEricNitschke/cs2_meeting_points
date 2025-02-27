@@ -1,7 +1,9 @@
 use crate::constants::{CROUCH_JUMP_HEIGHT_GAIN, GRAVITY, PLAYER_WIDTH, RUNNING_SPEED, jump_speed};
+
 use geo::geometry::Point;
 use serde::{Deserialize, Serialize};
 use std::ops::{Add, Sub};
+
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Position {
     pub x: f64,

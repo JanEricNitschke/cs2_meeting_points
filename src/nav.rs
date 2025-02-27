@@ -1,17 +1,28 @@
-use std::collections::{HashMap, HashSet};
-
-use crate::constants::{CROUCHING_ATTRIBUTE_FLAG, CROUCHING_SPEED, RUNNING_SPEED};
+use crate::constants::{
+    CROUCHING_ATTRIBUTE_FLAG, CROUCHING_SPEED, JUMP_HEIGHT, PLAYER_EYE_LEVEL, RUNNING_SPEED,
+};
 use crate::position::Position;
-use bincode::{deserialize_from, serialize_into};
-use geo::Contains;
-use geo::geometry::{LineString, Polygon};
-use itertools::Itertools;
+use crate::utils::create_file_with_parents;
+use crate::visibility::{VisibilityChecker, load_vis_checker};
+
+use geo::algorithm::line_measures::metric_spaces::Euclidean;
+use geo::geometry::{LineString, Point, Polygon};
+use geo::{Centroid, Contains, Distance, Intersects};
+use itertools::{Itertools, iproduct};
 use petgraph::algo::astar;
 use petgraph::graphmap::DiGraphMap;
 use petgraph::visit::EdgeRef;
-use serde::{Deserialize, Serialize};
-
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use serde::de::{self, MapAccess, Visitor};
+use serde::{Deserialize, Deserializer, Serialize};
+use simple_tqdm::{Config, ParTqdm, Tqdm};
+use std::cmp::Ordering;
+use std::collections::{HashMap, HashSet};
+use std::f64;
+use std::fmt;
 use std::fs::File;
+use std::path::Path;
+
 // --- DynamicAttributeFlags ---
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
 pub struct DynamicAttributeFlags(u32);
@@ -28,7 +39,11 @@ impl From<DynamicAttributeFlags> for u32 {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+trait AreaLike {
+    fn centroid(&self) -> Position;
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct NavArea {
     pub area_id: u32,
     pub hull_index: u32,
@@ -37,6 +52,7 @@ pub struct NavArea {
     pub connections: Vec<u32>,
     pub ladders_above: Vec<u32>,
     pub ladders_below: Vec<u32>,
+    centroid: Position,
 }
 
 impl PartialEq for NavArea {
@@ -45,16 +61,38 @@ impl PartialEq for NavArea {
     }
 }
 
+#[allow(clippy::cast_precision_loss)]
+/// Computes the centroid of the polygon (averaging all corners).
+pub fn centroid(corners: &[Position]) -> Position {
+    if corners.is_empty() {
+        return Position::new(0.0, 0.0, 0.0);
+    }
+    let (sum_x, sum_y, sum_z) = corners.iter().fold((0.0, 0.0, 0.0), |(sx, sy, sz), c| {
+        (sx + c.x, sy + c.y, sz + c.z)
+    });
+    let count = corners.len() as f64;
+    Position::new(sum_x / count, sum_y / count, sum_z / count)
+}
+
 impl NavArea {
-    pub const fn new(area_id: u32, dynamic_attribute_flags: DynamicAttributeFlags) -> Self {
+    pub fn new(
+        area_id: u32,
+        dynamic_attribute_flags: DynamicAttributeFlags,
+        corners: Vec<Position>,
+        connections: Vec<u32>,
+        ladders_above: Vec<u32>,
+        ladders_below: Vec<u32>,
+    ) -> Self {
+        let centroid = centroid(&corners);
         Self {
             area_id,
             hull_index: 0,
             dynamic_attribute_flags,
-            corners: Vec::new(),
-            connections: Vec::new(),
-            ladders_above: Vec::new(),
-            ladders_below: Vec::new(),
+            corners,
+            connections,
+            ladders_above,
+            ladders_below,
+            centroid,
         }
     }
 
@@ -80,22 +118,6 @@ impl NavArea {
         area.abs() / 2.0
     }
 
-    #[allow(clippy::cast_precision_loss)]
-    /// Computes the centroid of the polygon (averaging all corners).
-    pub fn centroid(&self) -> Position {
-        if self.corners.is_empty() {
-            return Position::new(0.0, 0.0, 0.0);
-        }
-        let (sum_x, sum_y, sum_z) = self
-            .corners
-            .iter()
-            .fold((0.0, 0.0, 0.0), |(sx, sy, sz), c| {
-                (sx + c.x, sy + c.y, sz + c.z)
-            });
-        let count = self.corners.len() as f64;
-        Position::new(sum_x / count, sum_y / count, sum_z / count)
-    }
-
     /// Returns a 2D Shapely Polygon using the (x,y) of the corners.
     pub fn to_polygon_2d(&self) -> Polygon {
         let coords: Vec<(f64, f64)> = self.corners.iter().map(|c| (c.x, c.y)).collect();
@@ -109,6 +131,98 @@ impl NavArea {
 
     pub fn centroid_distance(&self, point: &Position) -> f64 {
         self.centroid().distance(point)
+    }
+}
+
+// Custom deserialization for NavArea
+impl<'de> Deserialize<'de> for NavArea {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct NavAreaVisitor;
+
+        impl<'de> Visitor<'de> for NavAreaVisitor {
+            type Value = NavArea;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a NavArea struct")
+            }
+
+            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+            where
+                A: MapAccess<'de>,
+            {
+                let mut area_id = None;
+                let mut hull_index = None;
+                let mut dynamic_attribute_flags = None;
+                let mut corners: Option<Vec<Position>> = None;
+                let mut connections = None;
+                let mut ladders_above = None;
+                let mut ladders_below = None;
+                let mut nav_centroid = None;
+
+                while let Some(key) = map.next_key::<String>()? {
+                    match key.as_str() {
+                        "area_id" => area_id = Some(map.next_value()?),
+                        "hull_index" => hull_index = Some(map.next_value()?),
+                        "dynamic_attribute_flags" => {
+                            dynamic_attribute_flags = Some(map.next_value()?);
+                        }
+                        "corners" => corners = Some(map.next_value()?),
+                        "connections" => connections = Some(map.next_value()?),
+                        "ladders_above" => ladders_above = Some(map.next_value()?),
+                        "ladders_below" => ladders_below = Some(map.next_value()?),
+                        "centroid" => nav_centroid = Some(map.next_value()?),
+                        _ => {
+                            let _: serde::de::IgnoredAny = map.next_value()?;
+                        }
+                    }
+                }
+
+                let area_id = area_id.ok_or_else(|| de::Error::missing_field("area_id"))?;
+                let hull_index = hull_index.unwrap_or(0); // Default value
+                let dynamic_attribute_flags = dynamic_attribute_flags
+                    .ok_or_else(|| de::Error::missing_field("dynamic_attribute_flags"))?;
+                let corners = corners.ok_or_else(|| de::Error::missing_field("corners"))?;
+                let connections = connections.unwrap_or_default(); // Default value
+                let ladders_above = ladders_above.unwrap_or_default(); // Default value
+                let ladders_below = ladders_below.unwrap_or_default(); // Default value
+                let nav_centroid = nav_centroid.unwrap_or_else(|| centroid(&corners)); // Calculate centroid if missing
+
+                Ok(NavArea {
+                    area_id,
+                    hull_index,
+                    dynamic_attribute_flags,
+                    corners,
+                    connections,
+                    ladders_above,
+                    ladders_below,
+                    centroid: nav_centroid,
+                })
+            }
+        }
+
+        deserializer.deserialize_struct(
+            "NavArea",
+            &[
+                "area_id",
+                "hull_index",
+                "dynamic_attribute_flags",
+                "corners",
+                "connections",
+                "ladders_above",
+                "ladders_below",
+                "centroid",
+            ],
+            NavAreaVisitor,
+        )
+    }
+}
+
+impl AreaLike for NavArea {
+    fn centroid(&self) -> Position {
+        self.centroid
     }
 }
 
@@ -127,6 +241,21 @@ impl std::fmt::Display for NavArea {
     }
 }
 
+impl From<NewNavArea> for NavArea {
+    fn from(item: NewNavArea) -> Self {
+        Self {
+            area_id: item.area_id,
+            hull_index: 0,
+            dynamic_attribute_flags: item.dynamic_attribute_flags,
+            corners: item.corners,
+            connections: Vec::from_iter(item.connections),
+            ladders_above: Vec::from_iter(item.ladders_above),
+            ladders_below: Vec::from_iter(item.ladders_below),
+            centroid: item.centroid,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PathResult {
     pub path: Vec<NavArea>,
@@ -139,6 +268,15 @@ pub enum AreaIdent {
     Pos(Position),
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
+struct NavSerializationHelperStruct {
+    pub version: u32,
+    pub sub_version: u32,
+    pub is_analyzed: bool,
+    pub areas: HashMap<u32, NavArea>,
+}
+
+#[derive(Debug, Clone)]
 pub struct Nav {
     pub version: u32,
     pub sub_version: u32,
@@ -166,9 +304,7 @@ impl Nav {
         // Add edges
         for (area_id, area) in &areas {
             for connected_area_id in area.connected_areas() {
-                let connected_area = areas
-                    .get(&connected_area_id)
-                    .expect("Area missing in graph");
+                let connected_area = &areas[&connected_area_id];
                 let dx = area.centroid().x - connected_area.centroid().x;
                 let dy = area.centroid().y - connected_area.centroid().y;
                 let dist_weight = dx.hypot(dy);
@@ -233,9 +369,9 @@ impl Nav {
 
     /// Utility heuristic function for A* using Euclidean distance between node centroids.
     fn dist_heuristic(&self, node_a: u32, node_b: u32) -> f64 {
-        let a = self.areas.get(&node_a).unwrap().centroid();
-        let b = self.areas.get(&node_b).unwrap().centroid();
-        a.distance_2d(&b)
+        let a = &self.areas[&node_a].centroid();
+        let b = &self.areas[&node_b].centroid();
+        a.distance_2d(b)
     }
 
     fn path_cost(&self, path: &[u32]) -> f64 {
@@ -246,7 +382,7 @@ impl Nav {
     }
 
     /// Finds the path between two areas.
-    pub fn find_path(&self, start: AreaIdent, end: AreaIdent, weight: Option<&str>) -> PathResult {
+    pub fn find_path(&self, start: AreaIdent, end: AreaIdent) -> PathResult {
         let start_area = match start {
             AreaIdent::Pos(pos) => {
                 self.find_area(&pos)
@@ -289,20 +425,17 @@ impl Nav {
                 (AreaIdent::Id(_), AreaIdent::Id(_)) => distance,
                 // When one of them is a vector, assume using Euclidean distance to/from centroid.
                 (AreaIdent::Pos(start_pos), AreaIdent::Id(_)) => {
-                    start_pos.distance_2d(&self.areas.get(&end_area).unwrap().centroid())
+                    start_pos.distance_2d(&self.areas[&end_area].centroid())
                 }
-                (AreaIdent::Id(_), AreaIdent::Pos(end_pos)) => self
-                    .areas
-                    .get(&start_area)
-                    .unwrap()
-                    .centroid()
-                    .distance_2d(&end_pos),
+                (AreaIdent::Id(_), AreaIdent::Pos(end_pos)) => {
+                    self.areas[&start_area].centroid().distance_2d(&end_pos)
+                }
             }
         } else {
             // Use windows for middle path distances.
             let start_distance = match start {
                 AreaIdent::Pos(start_pos) => {
-                    start_pos.distance_2d(&self.areas.get(&path_ids[1]).unwrap().centroid())
+                    start_pos.distance_2d(&self.areas[&path_ids[1]].centroid())
                 }
                 AreaIdent::Id(_) => self.path_cost(&path_ids[0..=1]),
             };
@@ -310,10 +443,7 @@ impl Nav {
             let middle_distance: f64 = self.path_cost(&path_ids[1..path_ids.len() - 1]);
 
             let end_distance = match end {
-                AreaIdent::Pos(end_pos) => self
-                    .areas
-                    .get(&path_ids[path_ids.len() - 2])
-                    .unwrap()
+                AreaIdent::Pos(end_pos) => self.areas[&path_ids[path_ids.len() - 2]]
                     .centroid()
                     .distance_2d(&end_pos),
                 AreaIdent::Id(_) => {
@@ -336,15 +466,387 @@ impl Nav {
         }
     }
 
-    pub fn save_to_binary(&self, filename: &str) {
-        let mut file = File::create(filename).unwrap();
-        serialize_into(&mut file, &self.areas).unwrap();
+    pub fn save_to_json(self, filename: &Path) {
+        let mut file = create_file_with_parents(filename);
+        let helper = NavSerializationHelperStruct {
+            version: self.version,
+            sub_version: self.sub_version,
+            is_analyzed: self.is_analyzed,
+            areas: self.areas,
+        };
+        serde_json::to_writer(&mut file, &helper).unwrap();
     }
 
     // Load a struct instance from a JSON file
-    pub fn from_binary(filename: &str) -> Self {
+    pub fn from_json(filename: &Path) -> Self {
         let mut file = File::open(filename).unwrap();
-        let areas = deserialize_from(&mut file).unwrap();
-        Self::new(0, 0, areas, false)
+        let helper: NavSerializationHelperStruct = serde_json::from_reader(&mut file).unwrap();
+        Self::new(
+            helper.version,
+            helper.sub_version,
+            helper.areas,
+            helper.is_analyzed,
+        )
     }
+}
+
+fn areas_visible<T: AreaLike>(
+    area1: &T,
+    area2: &T,
+    vis_checker: &VisibilityChecker,
+    correct_height: bool,
+) -> bool {
+    let height_correction = if correct_height {
+        PLAYER_EYE_LEVEL
+    } else {
+        PLAYER_EYE_LEVEL / 2.0
+    };
+
+    let area1_centroid = area1.centroid();
+    let area2_centroid = area2.centroid();
+
+    let used_centroid1 = Position::new(
+        area1_centroid.x,
+        area1_centroid.y,
+        area1_centroid.z + height_correction,
+    );
+    let used_centroid2 = Position::new(
+        area2_centroid.x,
+        area2_centroid.y,
+        area2_centroid.z + height_correction,
+    );
+
+    vis_checker.is_visible(used_centroid1, used_centroid2)
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+struct NewNavArea {
+    pub area_id: u32,
+    pub dynamic_attribute_flags: DynamicAttributeFlags,
+    pub corners: Vec<Position>,
+    pub connections: HashSet<u32>,
+    pub ladders_above: HashSet<u32>,
+    pub ladders_below: HashSet<u32>,
+    pub orig_ids: HashSet<u32>,
+    centroid: Position,
+}
+
+impl NewNavArea {
+    pub fn new(
+        corners: Vec<Position>,
+        orig_ids: HashSet<u32>,
+        ladders_above: HashSet<u32>,
+        ladders_below: HashSet<u32>,
+        dynamic_attribute_flags: DynamicAttributeFlags,
+        connections: HashSet<u32>,
+    ) -> Self {
+        let centroid = centroid(&corners);
+        Self {
+            area_id: 0,
+            dynamic_attribute_flags,
+            corners,
+            connections,
+            ladders_above,
+            ladders_below,
+            orig_ids,
+            centroid,
+        }
+    }
+}
+
+impl AreaLike for NewNavArea {
+    fn centroid(&self) -> Position {
+        self.centroid
+    }
+}
+
+#[derive(Debug, Clone)]
+struct AdditionalNavAreaInfo {
+    pub polygon: Polygon,
+    pub z_level: f64,
+}
+
+#[allow(clippy::cast_precision_loss)]
+fn create_new_nav_areas(
+    nav_areas: &HashMap<u32, NavArea>,
+    grid_granularity: usize,
+    xs: &[f64],
+    ys: &[f64],
+    area_extra_info: &HashMap<u32, AdditionalNavAreaInfo>,
+    tqdm_config: Config,
+) -> (Vec<NewNavArea>, HashMap<u32, HashSet<u32>>) {
+    let min_x = *xs.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
+    let max_x = *xs.iter().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
+    let min_y = *ys.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
+    let max_y = *ys.iter().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
+
+    let cell_width = (max_x - min_x) / grid_granularity as f64;
+    let cell_height = (max_y - min_y) / grid_granularity as f64;
+
+    let mut new_cells: Vec<NewNavArea> = Vec::new();
+
+    // For each grid cell, test the center with all nav area polygons
+    for (i, j) in iproduct!(0..grid_granularity, 0..grid_granularity)
+        .tqdm_config(tqdm_config.with_desc("Creating grid cell"))
+    {
+        let cell_min_x = min_x + j as f64 * cell_width;
+        let cell_min_y = min_y + i as f64 * cell_height;
+        let cell_max_x = cell_min_x + cell_width;
+        let cell_max_y = cell_min_y + cell_height;
+        let center_x = (cell_min_x + cell_max_x) / 2.0;
+        let center_y = (cell_min_y + cell_max_y) / 2.0;
+        let center_point = Point::new(center_x, center_y);
+
+        let cell_poly = Polygon::new(
+            LineString::from(vec![
+                (cell_min_x, cell_min_y),
+                (cell_max_x, cell_min_y),
+                (cell_max_x, cell_max_y),
+                (cell_min_x, cell_max_y),
+            ]),
+            vec![],
+        );
+
+        let mut primary_origs: HashSet<u32> = HashSet::new();
+        let mut extra_orig_ids: HashSet<u32> = HashSet::new();
+        for (area_id, info) in area_extra_info {
+            if info.polygon.contains(&center_point) {
+                primary_origs.insert(*area_id);
+            } else if info.polygon.intersects(&cell_poly) {
+                extra_orig_ids.insert(*area_id);
+            }
+        }
+
+        if primary_origs.is_empty() && extra_orig_ids.is_empty() {
+            continue;
+        }
+
+        let primary_origs = if primary_origs.is_empty() {
+            let min_id = extra_orig_ids.iter().min_by(|a, b| {
+                let distance_a = Euclidean::distance(
+                    &area_extra_info[*a].polygon.centroid().unwrap(),
+                    &center_point,
+                );
+
+                let distance_b = Euclidean::distance(
+                    &area_extra_info[*b].polygon.centroid().unwrap(),
+                    &center_point,
+                );
+                distance_a
+                    .partial_cmp(&distance_b)
+                    .unwrap_or(Ordering::Equal)
+            });
+            HashSet::from([*min_id.unwrap()])
+        } else {
+            primary_origs
+        };
+
+        for primary in primary_origs {
+            let mut cell_orig_ids = HashSet::from([primary]);
+            let primary_z = area_extra_info[&primary].z_level;
+
+            for other in &extra_orig_ids {
+                if *other != primary
+                    && (primary_z - area_extra_info[other].z_level).abs() <= JUMP_HEIGHT
+                {
+                    cell_orig_ids.insert(*other);
+                }
+            }
+
+            let rep_level = (primary_z * 100.0).round() / 100.0;
+            let corners = vec![
+                Position::new(cell_min_x, cell_min_y, rep_level),
+                Position::new(cell_max_x, cell_min_y, rep_level),
+                Position::new(cell_max_x, cell_max_y, rep_level),
+                Position::new(cell_min_x, cell_max_y, rep_level),
+            ];
+
+            let primary_area = &nav_areas[&primary];
+            new_cells.push(NewNavArea::new(
+                corners,
+                cell_orig_ids,
+                HashSet::from_iter(primary_area.ladders_above.clone()),
+                HashSet::from_iter(primary_area.ladders_below.clone()),
+                primary_area.dynamic_attribute_flags,
+                HashSet::new(),
+            ));
+        }
+    }
+    println!(); // Newline after tqdm so bars dont override each other.
+
+    let old_to_new_children = build_old_to_new_mapping(&mut new_cells);
+
+    (new_cells, old_to_new_children)
+}
+
+#[allow(clippy::cast_possible_truncation)]
+fn build_old_to_new_mapping(new_cells: &mut [NewNavArea]) -> HashMap<u32, HashSet<u32>> {
+    let mut old_to_new_children: HashMap<u32, HashSet<u32>> = HashMap::new();
+
+    for (idx, new_cell) in new_cells.iter_mut().enumerate() {
+        new_cell.area_id = idx as u32;
+        for orig_id in &new_cell.orig_ids {
+            old_to_new_children
+                .entry(*orig_id)
+                .or_default()
+                .insert(new_cell.area_id);
+        }
+    }
+    old_to_new_children
+}
+
+#[allow(clippy::cast_possible_truncation)]
+#[allow(clippy::cast_precision_loss)]
+pub fn regularize_nav_areas(
+    nav_areas: &HashMap<u32, NavArea>,
+    grid_granularity: usize,
+    map_name: &str,
+) -> HashMap<u32, NavArea> {
+    println!("Regularizing nav areas for {map_name}");
+
+    let tqdm_config = Config::new().with_leave(true);
+
+    let mut xs: Vec<f64> = Vec::new();
+    let mut ys: Vec<f64> = Vec::new();
+    let mut area_extra_info: HashMap<u32, AdditionalNavAreaInfo> = HashMap::new();
+    let vis_checker = load_vis_checker(map_name);
+
+    // Precompute the 2D polygon projection and an average-z for each nav area
+    for (area_id, area) in nav_areas {
+        let coords: Vec<(f64, f64)> = area.corners.iter().map(|c| (c.x, c.y)).collect();
+        let poly = Polygon::new(LineString::from(coords), vec![]);
+        let avg_z: f64 =
+            area.corners.iter().map(|corner| corner.z).sum::<f64>() / area.corners.len() as f64;
+        area_extra_info.insert(
+            *area_id,
+            AdditionalNavAreaInfo {
+                polygon: poly,
+                z_level: avg_z,
+            },
+        );
+
+        for corner in &area.corners {
+            xs.push(corner.x);
+            ys.push(corner.y);
+        }
+    }
+
+    if xs.is_empty() || ys.is_empty() {
+        return HashMap::new();
+    }
+
+    let (mut new_nav_areas, old_to_new_children) = create_new_nav_areas(
+        nav_areas,
+        grid_granularity,
+        &xs,
+        &ys,
+        &area_extra_info,
+        tqdm_config.clone(),
+    );
+
+    // // Build connectivity based solely on the new cell's orig_ids.
+    // // For a new cell A with orig set A_orig, connect to new cell B with orig set B_orig if:
+    // // ∃ a in A_orig and b in B_orig with a == b or b in nav_areas[a].connections
+    // for new_area in &mut new_nav_areas.iter_mut().tqdm_config(
+    //     tqdm_config
+    //         .clone()
+    //         .with_desc("Connections from inheritance"),
+    // ) {
+    //     let parent_areas = &new_area.orig_ids;
+    //     for parent_area in parent_areas {
+    //         let siblings = &old_to_new_children[parent_area];
+
+    //         for sibling in siblings {
+    //             if *sibling != new_area.area_id {
+    //                 new_area.connections.insert(*sibling);
+    //             }
+    //         }
+    //     }
+    // }
+    // println!(); // Newline after tqdm so bars dont override each other.
+
+    let new_connections: Vec<HashSet<u32>> = new_nav_areas
+        .par_iter()
+        .tqdm_config(tqdm_config.with_desc("Connections from reachability"))
+        .map(|area| {
+            let mut conns = HashSet::new();
+            for other_area in &new_nav_areas {
+                if area.area_id == other_area.area_id {
+                    continue;
+                }
+
+                if (!area.ladders_above.is_disjoint(&other_area.ladders_below))
+                    || (!area.ladders_below.is_disjoint(&other_area.ladders_above))
+                    || (area.centroid().can_jump_to(&other_area.centroid())
+                        && areas_visible(area, other_area, &vis_checker, false))
+                {
+                    conns.insert(other_area.area_id);
+                }
+            }
+            conns
+        })
+        .collect();
+    for (area, conns) in new_nav_areas.iter_mut().zip(new_connections) {
+        area.connections = conns;
+    }
+    println!(); // Newline after tqdm so bars dont override each other.
+
+    // // Ensure old connections are preserved
+    // for (a_idx, area_a) in nav_areas
+    //     .iter()
+    //     .tqdm_config(tqdm_config.with_desc("Ensuring old connections"))
+    // {
+    //     // These are old areas that have no assigned new ones. This can happen if they are
+    //     // never the primary area AND have too large a height difference with all primaries.
+    //     // Can think if there is a useful way to still incorporate them later.
+    //     let Some(children_of_a) = old_to_new_children.get(a_idx) else {
+    //         continue;
+    //     };
+    //     for neighbor_of_a_idx in &area_a.connections {
+    //         let Some(children_of_neighbor_of_a) = old_to_new_children.get(neighbor_of_a_idx) else {
+    //             continue;
+    //         };
+
+    //         let mut neighbors_of_children_of_a: HashSet<&u32> = HashSet::from_iter(children_of_a);
+    //         for child_of_a in children_of_a {
+    //             neighbors_of_children_of_a.extend(&new_nav_areas[*child_of_a as usize].connections);
+    //         }
+
+    //         if children_of_neighbor_of_a
+    //             .iter()
+    //             .any(|x| neighbors_of_children_of_a.contains(x))
+    //         {
+    //             // If there is overlap, continue the outer loop
+    //             continue;
+    //         }
+
+    //         let pairs_of_children =
+    //             iproduct!(children_of_a.iter(), children_of_neighbor_of_a.iter());
+
+    //         if let Some(closest_children) = pairs_of_children.min_by(|pair_a, pair_b| {
+    //             new_nav_areas[*pair_a.0 as usize]
+    //                 .centroid()
+    //                 .distance_2d(&new_nav_areas[*pair_a.1 as usize].centroid())
+    //                 .partial_cmp(
+    //                     &new_nav_areas[*pair_b.0 as usize]
+    //                         .centroid()
+    //                         .distance_2d(&new_nav_areas[*pair_b.1 as usize].centroid()),
+    //                 )
+    //                 .unwrap()
+    //         }) {
+    //             new_nav_areas
+    //                 .get_mut(*closest_children.0 as usize)
+    //                 .unwrap()
+    //                 .connections
+    //                 .insert(*closest_children.1);
+    //         }
+    //     }
+    // }
+    // println!(); // Newline after tqdm so bars dont override each other.
+
+    new_nav_areas
+        .into_iter()
+        .enumerate()
+        .map(|(idx, area)| (idx as u32, area.into()))
+        .collect()
 }

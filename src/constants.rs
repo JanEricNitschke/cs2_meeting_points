@@ -28,6 +28,7 @@ pub fn jump_speed() -> f64 {
 }
 
 pub const CROUCH_JUMP_HEIGHT_GAIN: f64 = 66.02 - JUMP_HEIGHT;
+pub const CROUCH_JUMP_HEIGHT: f64 = JUMP_HEIGHT + CROUCH_JUMP_HEIGHT_GAIN;
 pub const PLAYER_WIDTH: f64 = 32.0;
 
 // https://developer.valvesoftware.com/wiki/Counter-Strike:_Global_Offensive/Mapper%27s_Reference

@@ -1,7 +1,8 @@
 use crate::position::Position;
-use serde::{Deserialize, Serialize};
+use crate::utils::create_file_with_parents;
 
 use bincode::{deserialize_from, serialize_into};
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::fs::File;
 use std::io::Read;
@@ -355,13 +356,13 @@ impl VisibilityChecker {
         !Self::traverse_bvh(&self.root, &start, &direction, distance)
     }
 
-    pub fn save_to_binary<P: AsRef<Path>>(&self, filename: P) {
-        let mut file = File::create(filename).unwrap();
+    pub fn save_to_binary(&self, filename: &Path) {
+        let mut file = create_file_with_parents(filename);
         serialize_into(&mut file, &self).unwrap();
     }
 
     // Load a struct instance from a JSON file
-    pub fn from_binary<P: AsRef<Path>>(filename: P) -> Self {
+    pub fn from_binary(filename: &Path) -> Self {
         let mut file = File::open(filename).unwrap();
         deserialize_from(&mut file).unwrap()
     }
@@ -376,11 +377,15 @@ impl std::fmt::Display for VisibilityChecker {
 /// Load a visibility checker from a pickle file if available; otherwise build from a .tri file.
 pub fn load_vis_checker(map_name: &str) -> VisibilityChecker {
     let current_file = PathBuf::from(file!());
-    let parent = current_file.parent().expect("No parent found");
-    let tri_path = parent
+    let base = current_file
+        .parent()
+        .expect("No parent found")
+        .parent()
+        .unwrap();
+    let tri_path = base
         .join("data")
         .join("tri")
-        .join(format!("{map_name}.tri"));
+        .join(format!("{map_name}-clippings.tri"));
     let mut binary_path = tri_path.clone();
     binary_path.set_extension("vis");
 
@@ -389,14 +394,14 @@ pub fn load_vis_checker(map_name: &str) -> VisibilityChecker {
             "Loading from binary: {}",
             binary_path.file_stem().unwrap().to_string_lossy()
         );
-        return VisibilityChecker::from_binary(binary_path);
+        return VisibilityChecker::from_binary(&binary_path);
     }
-
+    println!("{tri_path:?}");
     println!(
         "Building from tri: {}",
         tri_path.file_stem().unwrap().to_string_lossy()
     );
     let vis_checker = VisibilityChecker::new(&tri_path);
-    vis_checker.save_to_binary(binary_path);
+    vis_checker.save_to_binary(&binary_path);
     vis_checker
 }
