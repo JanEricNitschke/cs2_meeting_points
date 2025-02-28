@@ -168,15 +168,15 @@ pub struct BVHNode {
     pub right: Option<Box<BVHNode>>,
 }
 
-// ---------- VisibilityChecker ----------
+// ---------- CollisionChecker ----------
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct VisibilityChecker {
+pub struct CollisionChecker {
     pub n_triangles: usize,
     pub root: BVHNode,
 }
 
-impl VisibilityChecker {
-    /// Construct a new `VisibilityChecker` from a file of triangles or an existing list.
+impl CollisionChecker {
+    /// Construct a new `CollisionChecker` from a file of triangles or an existing list.
     pub fn new(tri_file: &Path) -> Self {
         let triangles = read_tri_file(tri_file);
 
@@ -345,7 +345,7 @@ impl VisibilityChecker {
 
     /// Check if the line segment between start and end is visible.
     /// Returns true if no triangle obstructs the view.
-    pub fn is_visible(&self, start: Position, end: Position) -> bool {
+    pub fn connection_unobstructed(&self, start: Position, end: Position) -> bool {
         let mut direction = end - start;
         let distance = direction.length();
         if distance < 1e-6 {
@@ -368,14 +368,24 @@ impl VisibilityChecker {
     }
 }
 
-impl std::fmt::Display for VisibilityChecker {
+impl std::fmt::Display for CollisionChecker {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "VisibilityChecker(n_triangles={})", self.n_triangles)
+        write!(f, "CollisionChecker(n_triangles={})", self.n_triangles)
     }
 }
 
+#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
+pub enum CollisionCheckerStyle {
+    Visibility,
+    Walkability,
+}
+
 /// Load a visibility checker from a pickle file if available; otherwise build from a .tri file.
-pub fn load_vis_checker(map_name: &str) -> VisibilityChecker {
+pub fn load_collision_checker(map_name: &str, style: CollisionCheckerStyle) -> CollisionChecker {
+    let postfix = match style {
+        CollisionCheckerStyle::Visibility => "",
+        CollisionCheckerStyle::Walkability => "-clippings",
+    };
     let current_file = PathBuf::from(file!());
     let base = current_file
         .parent()
@@ -385,7 +395,7 @@ pub fn load_vis_checker(map_name: &str) -> VisibilityChecker {
     let tri_path = base
         .join("data")
         .join("tri")
-        .join(format!("{map_name}-clippings.tri"));
+        .join(format!("{map_name}{postfix}.tri"));
     let mut binary_path = tri_path.clone();
     binary_path.set_extension("vis");
 
@@ -394,14 +404,14 @@ pub fn load_vis_checker(map_name: &str) -> VisibilityChecker {
             "Loading from binary: {}",
             binary_path.file_stem().unwrap().to_string_lossy()
         );
-        return VisibilityChecker::from_binary(&binary_path);
+        return CollisionChecker::from_binary(&binary_path);
     }
     println!("{tri_path:?}");
     println!(
         "Building from tri: {}",
         tri_path.file_stem().unwrap().to_string_lossy()
     );
-    let vis_checker = VisibilityChecker::new(&tri_path);
+    let vis_checker = CollisionChecker::new(&tri_path);
     vis_checker.save_to_binary(&binary_path);
     vis_checker
 }

@@ -1,9 +1,10 @@
+use crate::collisions::{CollisionChecker, CollisionCheckerStyle, load_collision_checker};
 use crate::constants::{
-    CROUCHING_ATTRIBUTE_FLAG, CROUCHING_SPEED, JUMP_HEIGHT, PLAYER_EYE_LEVEL, RUNNING_SPEED,
+    CROUCHING_ATTRIBUTE_FLAG, CROUCHING_SPEED, JUMP_HEIGHT, PLAYER_CROUCH_HEIGHT, PLAYER_EYE_LEVEL,
+    PLAYER_HEIGHT, PLAYER_WIDTH, RUNNING_SPEED,
 };
-use crate::position::Position;
+use crate::position::{Position, inverse_distance_weighting};
 use crate::utils::create_file_with_parents;
-use crate::visibility::{VisibilityChecker, load_vis_checker};
 
 use geo::algorithm::line_measures::metric_spaces::Euclidean;
 use geo::geometry::{LineString, Point, Polygon};
@@ -28,8 +29,8 @@ use std::path::Path;
 pub struct DynamicAttributeFlags(u32);
 
 impl DynamicAttributeFlags {
-    pub fn new<T: Into<u32>>(value: T) -> Self {
-        Self(value.into())
+    pub const fn new(value: u32) -> Self {
+        Self(value)
     }
 }
 
@@ -39,8 +40,9 @@ impl From<DynamicAttributeFlags> for u32 {
     }
 }
 
-trait AreaLike {
+pub trait AreaLike {
     fn centroid(&self) -> Position;
+    fn requires_crouch(&self) -> bool;
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -224,6 +226,9 @@ impl AreaLike for NavArea {
     fn centroid(&self) -> Position {
         self.centroid
     }
+    fn requires_crouch(&self) -> bool {
+        self.dynamic_attribute_flags == CROUCHING_ATTRIBUTE_FLAG
+    }
 }
 
 impl std::fmt::Display for NavArea {
@@ -309,22 +314,19 @@ impl Nav {
                 let dy = area.centroid().y - connected_area.centroid().y;
                 let dist_weight = dx.hypot(dy);
 
-                let area_relative_speed = if DynamicAttributeFlags::new(CROUCHING_ATTRIBUTE_FLAG)
-                    == area.dynamic_attribute_flags
-                {
+                // TODO: For ladder connected areas add an additional distance
+                // based on height difference and LADDER_SPEED.
+                let area_relative_speed = if area.requires_crouch() {
                     CROUCHING_SPEED
                 } else {
                     RUNNING_SPEED
                 } / RUNNING_SPEED;
 
-                let connected_area_relative_speed =
-                    if DynamicAttributeFlags::new(CROUCHING_ATTRIBUTE_FLAG)
-                        == connected_area.dynamic_attribute_flags
-                    {
-                        CROUCHING_SPEED
-                    } else {
-                        RUNNING_SPEED
-                    } / RUNNING_SPEED;
+                let connected_area_relative_speed = if connected_area.requires_crouch() {
+                    CROUCHING_SPEED
+                } else {
+                    RUNNING_SPEED
+                } / RUNNING_SPEED;
 
                 let area_time_adjusted_distance = dist_weight / area_relative_speed;
                 let connected_area_time_adjusted_distance =
@@ -466,6 +468,10 @@ impl Nav {
         }
     }
 
+    pub fn floyd_warshall(&self) -> HashMap<(u32, u32), f64> {
+        petgraph::algo::floyd_warshall(&self.graph, |e| *e.weight()).unwrap()
+    }
+
     pub fn save_to_json(self, filename: &Path) {
         let mut file = create_file_with_parents(filename);
         let helper = NavSerializationHelperStruct {
@@ -490,17 +496,8 @@ impl Nav {
     }
 }
 
-fn areas_visible<T: AreaLike>(
-    area1: &T,
-    area2: &T,
-    vis_checker: &VisibilityChecker,
-    correct_height: bool,
-) -> bool {
-    let height_correction = if correct_height {
-        PLAYER_EYE_LEVEL
-    } else {
-        PLAYER_EYE_LEVEL / 2.0
-    };
+pub fn areas_visible<T: AreaLike>(area1: &T, area2: &T, vis_checker: &CollisionChecker) -> bool {
+    let height_correction = PLAYER_EYE_LEVEL;
 
     let area1_centroid = area1.centroid();
     let area2_centroid = area2.centroid();
@@ -516,7 +513,44 @@ fn areas_visible<T: AreaLike>(
         area2_centroid.z + height_correction,
     );
 
-    vis_checker.is_visible(used_centroid1, used_centroid2)
+    vis_checker.connection_unobstructed(used_centroid1, used_centroid2)
+}
+
+fn areas_walkable<T: AreaLike>(area1: &T, area2: &T, walk_checker: &CollisionChecker) -> bool {
+    let height = if area1.requires_crouch() || area2.requires_crouch() {
+        PLAYER_CROUCH_HEIGHT
+    } else {
+        PLAYER_HEIGHT
+    };
+    // Using the full width can slightly mess up some tight corners, so use 90% of it.
+    let width = 0.9 * PLAYER_WIDTH;
+
+    let area1_centroid = area1.centroid();
+    let area2_centroid = area2.centroid();
+
+    let dx = area2_centroid.x - area1_centroid.x;
+    let dy = area2_centroid.y - area1_centroid.y;
+    let angle = dx.atan2(dy);
+
+    for (width_correction, height_correction) in iproduct!([width / 2.0, -width / 2.0], [height]) {
+        let dx_corr = width_correction * angle.cos();
+        let dy_corr = width_correction * angle.sin();
+
+        let used_centroid1 = Position::new(
+            area1_centroid.x + dx_corr,
+            area1_centroid.y + dy_corr,
+            area1_centroid.z + height_correction,
+        );
+        let used_centroid2 = Position::new(
+            area2_centroid.x + dx_corr,
+            area2_centroid.y + dy_corr,
+            area2_centroid.z + height_correction,
+        );
+        if !walk_checker.connection_unobstructed(used_centroid1, used_centroid2) {
+            return false;
+        }
+    }
+    true
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -557,6 +591,9 @@ impl NewNavArea {
 impl AreaLike for NewNavArea {
     fn centroid(&self) -> Position {
         self.centroid
+    }
+    fn requires_crouch(&self) -> bool {
+        self.dynamic_attribute_flags == CROUCHING_ATTRIBUTE_FLAG
     }
 }
 
@@ -607,6 +644,8 @@ fn create_new_nav_areas(
             vec![],
         );
 
+        // TODO: Create tiles and their z coordinate by player clipping collisions
+        // with heaven to floor rays?
         let mut primary_origs: HashSet<u32> = HashSet::new();
         let mut extra_orig_ids: HashSet<u32> = HashSet::new();
         for (area_id, info) in area_extra_info {
@@ -643,7 +682,8 @@ fn create_new_nav_areas(
 
         for primary in primary_origs {
             let mut cell_orig_ids = HashSet::from([primary]);
-            let primary_z = area_extra_info[&primary].z_level;
+            let primary_z =
+                inverse_distance_weighting(&nav_areas[&primary].corners, (center_x, center_y));
 
             for other in &extra_orig_ids {
                 if *other != primary
@@ -709,7 +749,7 @@ pub fn regularize_nav_areas(
     let mut xs: Vec<f64> = Vec::new();
     let mut ys: Vec<f64> = Vec::new();
     let mut area_extra_info: HashMap<u32, AdditionalNavAreaInfo> = HashMap::new();
-    let vis_checker = load_vis_checker(map_name);
+    let walk_checker = load_collision_checker(map_name, CollisionCheckerStyle::Walkability);
 
     // Precompute the 2D polygon projection and an average-z for each nav area
     for (area_id, area) in nav_areas {
@@ -744,41 +784,116 @@ pub fn regularize_nav_areas(
         tqdm_config.clone(),
     );
 
-    // // Build connectivity based solely on the new cell's orig_ids.
-    // // For a new cell A with orig set A_orig, connect to new cell B with orig set B_orig if:
-    // // ∃ a in A_orig and b in B_orig with a == b or b in nav_areas[a].connections
-    // for new_area in &mut new_nav_areas.iter_mut().tqdm_config(
-    //     tqdm_config
-    //         .clone()
-    //         .with_desc("Connections from inheritance"),
-    // ) {
-    //     let parent_areas = &new_area.orig_ids;
-    //     for parent_area in parent_areas {
-    //         let siblings = &old_to_new_children[parent_area];
+    // add_intra_area_connections(
+    //     &mut new_nav_areas,
+    //     &old_to_new_children,
+    //     tqdm_config.clone(),
+    // );
 
-    //         for sibling in siblings {
-    //             if *sibling != new_area.area_id {
-    //                 new_area.connections.insert(*sibling);
-    //             }
-    //         }
-    //     }
-    // }
-    // println!(); // Newline after tqdm so bars dont override each other.
+    add_connections_by_reachability(&mut new_nav_areas, &walk_checker, tqdm_config.clone());
 
+    ensure_inter_area_connections(
+        &mut new_nav_areas,
+        nav_areas,
+        &old_to_new_children,
+        tqdm_config,
+    );
+
+    new_nav_areas
+        .into_iter()
+        .enumerate()
+        .map(|(idx, area)| (idx as u32, area.into()))
+        .collect()
+}
+
+fn ensure_inter_area_connections(
+    new_nav_areas: &mut [NewNavArea],
+    nav_areas: &HashMap<u32, NavArea>,
+    old_to_new_children: &HashMap<u32, HashSet<u32>>,
+    tqdm_config: Config,
+) {
+    // Ensure old connections are preserved
+    for (a_idx, area_a) in nav_areas
+        .iter()
+        .tqdm_config(tqdm_config.with_desc("Ensuring old connections"))
+    {
+        // These are old areas that have no assigned new ones. This can happen if they are
+        // never the primary area AND have too large a height difference with all primaries.
+        // Can think if there is a useful way to still incorporate them later.
+        let Some(children_of_a) = old_to_new_children.get(a_idx) else {
+            continue;
+        };
+        for neighbor_of_a_idx in &area_a.connections {
+            let Some(children_of_neighbor_of_a) = old_to_new_children.get(neighbor_of_a_idx) else {
+                continue;
+            };
+
+            let mut neighbors_of_children_of_a: HashSet<&u32> = HashSet::from_iter(children_of_a);
+            for child_of_a in children_of_a {
+                neighbors_of_children_of_a.extend(&new_nav_areas[*child_of_a as usize].connections);
+            }
+
+            if children_of_neighbor_of_a
+                .iter()
+                .any(|x| neighbors_of_children_of_a.contains(x))
+            {
+                // If there is overlap, continue the outer loop
+                continue;
+            }
+
+            let pairs_of_children =
+                iproduct!(children_of_a.iter(), children_of_neighbor_of_a.iter());
+
+            let pairs_of_children = pairs_of_children.sorted_by(|pair_a, pair_b| {
+                new_nav_areas[*pair_a.0 as usize]
+                    .centroid()
+                    .distance_2d(&new_nav_areas[*pair_a.1 as usize].centroid())
+                    .partial_cmp(
+                        &new_nav_areas[*pair_b.0 as usize]
+                            .centroid()
+                            .distance_2d(&new_nav_areas[*pair_b.1 as usize].centroid()),
+                    )
+                    .unwrap()
+            });
+
+            // Ideally we would just take the overall min here instead of sorting
+            // and taking 3. But due to map weirdnesses it can happen that exactly
+            // this one field does not have the proper connection so we need to
+            // have a buffer. Trying 3 for now.
+            for pair_of_children in pairs_of_children.take(3) {
+                new_nav_areas
+                    .get_mut(*pair_of_children.0 as usize)
+                    .unwrap()
+                    .connections
+                    .insert(*pair_of_children.1);
+            }
+        }
+    }
+    println!();
+    // Newline after tqdm so bars dont override each other.
+}
+
+fn add_connections_by_reachability(
+    new_nav_areas: &mut Vec<NewNavArea>,
+    walk_checker: &CollisionChecker,
+    tqdm_config: Config,
+) {
     let new_connections: Vec<HashSet<u32>> = new_nav_areas
         .par_iter()
         .tqdm_config(tqdm_config.with_desc("Connections from reachability"))
         .map(|area| {
             let mut conns = HashSet::new();
-            for other_area in &new_nav_areas {
-                if area.area_id == other_area.area_id {
+            for other_area in &*new_nav_areas {
+                if area.area_id == other_area.area_id
+                    || area.connections.contains(&other_area.area_id)
+                {
                     continue;
                 }
 
                 if (!area.ladders_above.is_disjoint(&other_area.ladders_below))
                     || (!area.ladders_below.is_disjoint(&other_area.ladders_above))
                     || (area.centroid().can_jump_to(&other_area.centroid())
-                        && areas_visible(area, other_area, &vis_checker, false))
+                        && areas_walkable(area, other_area, walk_checker))
                 {
                     conns.insert(other_area.area_id);
                 }
@@ -787,66 +902,34 @@ pub fn regularize_nav_areas(
         })
         .collect();
     for (area, conns) in new_nav_areas.iter_mut().zip(new_connections) {
-        area.connections = conns;
+        area.connections.extend(conns);
+    }
+    println!();
+    // Newline after tqdm so bars dont override each other.
+}
+
+fn add_intra_area_connections(
+    new_nav_areas: &mut [NewNavArea],
+    old_to_new_children: &HashMap<u32, HashSet<u32>>,
+    tqdm_config: Config,
+) {
+    // Build connectivity based solely on the new cell's orig_ids.
+    // For a new cell A with orig set A_orig, connect to new cell B with orig set B_orig if:
+    // ∃ a in A_orig and b in B_orig with a == b or b in nav_areas[a].connections
+    for new_area in &mut new_nav_areas
+        .iter_mut()
+        .tqdm_config(tqdm_config.with_desc("Connections from inheritance"))
+    {
+        let parent_areas = &new_area.orig_ids;
+        for parent_area in parent_areas {
+            let siblings = &old_to_new_children[parent_area];
+
+            for sibling in siblings {
+                if *sibling != new_area.area_id {
+                    new_area.connections.insert(*sibling);
+                }
+            }
+        }
     }
     println!(); // Newline after tqdm so bars dont override each other.
-
-    // // Ensure old connections are preserved
-    // for (a_idx, area_a) in nav_areas
-    //     .iter()
-    //     .tqdm_config(tqdm_config.with_desc("Ensuring old connections"))
-    // {
-    //     // These are old areas that have no assigned new ones. This can happen if they are
-    //     // never the primary area AND have too large a height difference with all primaries.
-    //     // Can think if there is a useful way to still incorporate them later.
-    //     let Some(children_of_a) = old_to_new_children.get(a_idx) else {
-    //         continue;
-    //     };
-    //     for neighbor_of_a_idx in &area_a.connections {
-    //         let Some(children_of_neighbor_of_a) = old_to_new_children.get(neighbor_of_a_idx) else {
-    //             continue;
-    //         };
-
-    //         let mut neighbors_of_children_of_a: HashSet<&u32> = HashSet::from_iter(children_of_a);
-    //         for child_of_a in children_of_a {
-    //             neighbors_of_children_of_a.extend(&new_nav_areas[*child_of_a as usize].connections);
-    //         }
-
-    //         if children_of_neighbor_of_a
-    //             .iter()
-    //             .any(|x| neighbors_of_children_of_a.contains(x))
-    //         {
-    //             // If there is overlap, continue the outer loop
-    //             continue;
-    //         }
-
-    //         let pairs_of_children =
-    //             iproduct!(children_of_a.iter(), children_of_neighbor_of_a.iter());
-
-    //         if let Some(closest_children) = pairs_of_children.min_by(|pair_a, pair_b| {
-    //             new_nav_areas[*pair_a.0 as usize]
-    //                 .centroid()
-    //                 .distance_2d(&new_nav_areas[*pair_a.1 as usize].centroid())
-    //                 .partial_cmp(
-    //                     &new_nav_areas[*pair_b.0 as usize]
-    //                         .centroid()
-    //                         .distance_2d(&new_nav_areas[*pair_b.1 as usize].centroid()),
-    //                 )
-    //                 .unwrap()
-    //         }) {
-    //             new_nav_areas
-    //                 .get_mut(*closest_children.0 as usize)
-    //                 .unwrap()
-    //                 .connections
-    //                 .insert(*closest_children.1);
-    //         }
-    //     }
-    // }
-    // println!(); // Newline after tqdm so bars dont override each other.
-
-    new_nav_areas
-        .into_iter()
-        .enumerate()
-        .map(|(idx, area)| (idx as u32, area.into()))
-        .collect()
 }

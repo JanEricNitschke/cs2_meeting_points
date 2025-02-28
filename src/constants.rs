@@ -1,3 +1,5 @@
+use crate::nav::DynamicAttributeFlags;
+
 // Sides
 pub const CT_SIDE: &str = "ct";
 pub const T_SIDE: &str = "t";
@@ -18,7 +20,7 @@ pub const DEFAULT_INFERNO_DURATION_IN_SECS: f64 = 7.03125;
 pub const RUNNING_SPEED: f64 = 250.0;
 pub const GRAVITY: f64 = 800.0;
 pub const CROUCHING_SPEED: f64 = 85.0;
-pub const CROUCHING_ATTRIBUTE_FLAG: u32 = 65536;
+pub const CROUCHING_ATTRIBUTE_FLAG: DynamicAttributeFlags = DynamicAttributeFlags::new(65536_u32);
 pub const JUMP_HEIGHT: f64 = 55.83;
 
 /// 0.5m * v^2 = m * g * h
@@ -34,3 +36,5 @@ pub const PLAYER_WIDTH: f64 = 32.0;
 // https://developer.valvesoftware.com/wiki/Counter-Strike:_Global_Offensive/Mapper%27s_Reference
 pub const PLAYER_HEIGHT: f64 = 72.0;
 pub const PLAYER_EYE_LEVEL: f64 = 64.093_811;
+pub const PLAYER_CROUCH_HEIGHT: f64 = 54.0;
+pub const PLAYER_CROUCH_EYE_LEVEL: f64 = 46.076_218;
