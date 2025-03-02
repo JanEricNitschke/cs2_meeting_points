@@ -21,7 +21,7 @@ jobs:
         uses: actions-rust-lang/setup-rust-toolchain@v1
       - name: Build
         run: |
-          cargo build --verbose
+          _RJEM_MALLOC_CONF = "thp:always,metadata_thp:always" cargo build --verbose
       - name: Lint
         run: |
           rustup component add clippy

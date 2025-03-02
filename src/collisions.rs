@@ -401,14 +401,14 @@ pub fn load_collision_checker(map_name: &str, style: CollisionCheckerStyle) -> C
 
     if binary_path.exists() {
         println!(
-            "Loading from binary: {}",
+            "Loading collision checker with style {style:?} from binary: {}",
             binary_path.file_stem().unwrap().to_string_lossy()
         );
         return CollisionChecker::from_binary(&binary_path);
     }
     println!("{tri_path:?}");
     println!(
-        "Building from tri: {}",
+        "Building collision checker with style {style:?} from tri: {}",
         tri_path.file_stem().unwrap().to_string_lossy()
     );
     let vis_checker = CollisionChecker::new(&tri_path);

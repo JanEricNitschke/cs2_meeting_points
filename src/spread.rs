@@ -4,10 +4,14 @@ use crate::position::Position;
 use crate::utils::create_file_with_parents;
 use core::f64;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use rayon::prelude::ParallelSliceMut;
+use rustc_hash::FxHashMap as HashMap;
+use rustc_hash::FxHashSet as HashSet;
 use serde::{Deserialize, Serialize};
-use simple_tqdm::{Config, ParTqdm};
-use std::collections::HashSet;
+use simple_tqdm::{Config, ParTqdm, Tqdm};
 use std::fs::File;
+use std::iter;
+use std::mem;
 use std::path::Path;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -19,8 +23,8 @@ pub struct Spawns {
 
 impl Spawns {
     pub fn from_json(filename: &Path) -> Self {
-        let mut file = File::open(filename).unwrap();
-        serde_json::from_reader(&mut file).unwrap()
+        let file = File::open(filename).unwrap();
+        serde_json::from_reader(&file).unwrap()
     }
 }
 
@@ -40,8 +44,8 @@ pub struct SpawnDistances {
 
 impl SpawnDistances {
     pub fn from_json(filename: &Path) -> Self {
-        let mut file = File::open(filename).unwrap();
-        serde_json::from_reader(&mut file).unwrap()
+        let file = File::open(filename).unwrap();
+        serde_json::from_reader(&file).unwrap()
     }
 
     pub fn save_to_json(self, filename: &Path) {
@@ -68,7 +72,7 @@ pub fn get_distances_from_spawns(map_areas: &Nav, spawns: &Spawns) -> SpawnDista
                 })
                 .min_by(|a, b| a.distance.partial_cmp(&b.distance).unwrap())
                 .unwrap_or(PathResult {
-                    distance: f64::INFINITY,
+                    distance: f64::MAX,
                     path: Vec::new(),
                 });
 
@@ -80,7 +84,7 @@ pub fn get_distances_from_spawns(map_areas: &Nav, spawns: &Spawns) -> SpawnDista
                 })
                 .min_by(|a, b| a.distance.partial_cmp(&b.distance).unwrap())
                 .unwrap_or(PathResult {
-                    distance: f64::INFINITY,
+                    distance: f64::MAX,
                     path: Vec::new(),
                 });
 
@@ -108,8 +112,8 @@ pub fn get_distances_from_spawns(map_areas: &Nav, spawns: &Spawns) -> SpawnDista
         t_distances.push(t);
     }
 
-    ct_distances.sort_by(|a, b| a.distance.partial_cmp(&b.distance).unwrap());
-    t_distances.sort_by(|a, b| a.distance.partial_cmp(&b.distance).unwrap());
+    ct_distances.par_sort_unstable_by(|a, b| a.distance.partial_cmp(&b.distance).unwrap());
+    t_distances.par_sort_unstable_by(|a, b| a.distance.partial_cmp(&b.distance).unwrap());
 
     SpawnDistances {
         CT: ct_distances,
@@ -121,12 +125,7 @@ pub struct SpreadResult {
     new_marked_areas_ct: HashSet<u32>,
     new_marked_areas_t: HashSet<u32>,
 
-    old_marked_areas_ct: HashSet<u32>,
-    old_marked_areas_t: HashSet<u32>,
-
     visibility_connections: Vec<(SpawnDistance, SpawnDistance)>,
-
-    contains_new_connections: bool,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -135,82 +134,95 @@ pub enum SpreadStyle {
     Rough,
 }
 
+pub fn save_spreads_to_json(spreads: &[SpreadResult], filename: &Path) {
+    let mut file = create_file_with_parents(filename);
+    serde_json::to_writer(&mut file, &spreads).unwrap();
+}
+
+fn assert_sorted(spawn_distances: &[SpawnDistance]) {
+    assert!(
+        spawn_distances
+            .windows(2)
+            .all(|w| w[0].distance <= w[1].distance)
+    );
+}
+
+#[allow(clippy::too_many_lines)]
 pub fn generate_spreads(
     spawn_distances_ct: &[SpawnDistance],
     spawn_distances_t: &[SpawnDistance],
     vis_checker: &CollisionChecker,
     style: SpreadStyle,
+    visibility_cache: Option<&HashMap<(u32, u32), bool>>,
 ) -> Vec<SpreadResult> {
+    assert_sorted(spawn_distances_ct);
+    assert_sorted(spawn_distances_t);
+
     let mut ct_index = 0;
     let mut t_index = 0;
 
-    let mut marked_areas_ct: HashSet<u32> = HashSet::new();
-    let mut marked_areas_t: HashSet<u32> = HashSet::new();
-    let mut new_marked_areas_ct: HashSet<u32> = HashSet::new();
-    let mut new_marked_areas_t: HashSet<u32> = HashSet::new();
+    let mut new_marked_areas_ct: HashSet<u32> = HashSet::default();
+    let mut new_marked_areas_t: HashSet<u32> = HashSet::default();
 
-    let mut spotted_areas_t: HashSet<u32> = HashSet::new();
-    let mut spotted_areas_ct: HashSet<u32> = HashSet::new();
+    let mut previous_areas_ct: Vec<&SpawnDistance> = Vec::with_capacity(spawn_distances_ct.len());
+    let mut previous_areas_t: Vec<&SpawnDistance> = Vec::with_capacity(spawn_distances_t.len());
+
+    let mut spotted_areas_ct: HashSet<u32> = HashSet::default();
+    let mut spotted_areas_t: HashSet<u32> = HashSet::default();
     let mut visibility_connections: Vec<(SpawnDistance, SpawnDistance)> = Vec::new();
 
-    let mut last_plotted: f64 = f64::NEG_INFINITY;
+    let mut last_plotted: f64 = 0.0;
 
-    let mut result = Vec::new();
+    let mut result = Vec::with_capacity(spawn_distances_ct.len() + spawn_distances_t.len());
 
     let n_iterations = spawn_distances_ct
         .iter()
         .chain(spawn_distances_t.iter())
-        .filter(|a| a.distance < f64::INFINITY)
+        .filter(|a| a.distance < f64::MAX)
         .count();
 
+    let tqdm_config = Config::new()
+        .with_leave(true)
+        .with_desc(format!("Generating spreads with style: {style:?}"));
+    let mut p_bar = iter::repeat(()).take(n_iterations).tqdm_config(tqdm_config);
+
     loop {
+        p_bar.next();
         let (current_area, opposing_spotted_areas, own_spotted_areas, opposing_previous_areas) =
-            if spawn_distances_ct[ct_index].distance < spawn_distances_t[t_index].distance {
+            if ct_index < spawn_distances_ct.len()
+                && (t_index >= spawn_distances_t.len()
+                    || spawn_distances_ct[ct_index].distance < spawn_distances_t[t_index].distance)
+            {
                 let current = &spawn_distances_ct[ct_index];
                 new_marked_areas_ct.insert(current.area.area_id);
-                let opposing_prev: Vec<_> = spawn_distances_t
-                    .iter()
-                    .filter(|a| {
-                        marked_areas_t.contains(&a.area.area_id)
-                            || new_marked_areas_t.contains(&a.area.area_id)
-                    })
-                    .collect();
+                previous_areas_ct.push(current);
 
                 ct_index += 1;
                 (
                     current,
                     &mut spotted_areas_t,
                     &mut spotted_areas_ct,
-                    opposing_prev,
+                    &mut previous_areas_t,
                 )
             } else {
                 let current = &spawn_distances_t[t_index];
                 new_marked_areas_t.insert(current.area.area_id);
-                let opposing_prev: Vec<_> = spawn_distances_ct
-                    .iter()
-                    .filter(|a| {
-                        marked_areas_ct.contains(&a.area.area_id)
-                            || new_marked_areas_ct.contains(&a.area.area_id)
-                    })
-                    .collect();
+                previous_areas_t.push(current);
 
                 t_index += 1;
                 (
                     current,
                     &mut spotted_areas_ct,
                     &mut spotted_areas_t,
-                    opposing_prev,
+                    &mut previous_areas_ct,
                 )
             };
 
-        if current_area.distance == f64::INFINITY {
+        if current_area.distance == f64::MAX {
             result.push(SpreadResult {
-                new_marked_areas_ct: new_marked_areas_ct.clone(),
-                new_marked_areas_t: new_marked_areas_t.clone(),
-                old_marked_areas_ct: marked_areas_ct.clone(),
-                old_marked_areas_t: marked_areas_t.clone(),
-                visibility_connections: visibility_connections.clone(),
-                contains_new_connections: false,
+                new_marked_areas_ct: mem::take(&mut new_marked_areas_ct),
+                new_marked_areas_t: mem::take(&mut new_marked_areas_t),
+                visibility_connections: mem::take(&mut visibility_connections),
             });
             break;
         }
@@ -223,18 +235,19 @@ pub fn generate_spreads(
 
         let visible_areas = newly_visible(
             current_area,
-            &opposing_previous_areas,
+            opposing_previous_areas,
             vis_checker,
             own_spotted_areas,
             opposing_spotted_areas,
             style,
+            visibility_cache,
         );
 
         if !visible_areas.is_empty() {
             own_spotted_areas.insert(current_area.area.area_id);
             for spotted_by_area in &visible_areas {
                 opposing_spotted_areas.insert(spotted_by_area.area.area_id);
-                visibility_connections.push((current_area.clone(), spotted_by_area.clone()));
+                visibility_connections.push((current_area.clone(), (*spotted_by_area).clone()));
             }
         }
 
@@ -243,40 +256,27 @@ pub fn generate_spreads(
         }
 
         result.push(SpreadResult {
-            new_marked_areas_ct: new_marked_areas_ct.clone(),
-            new_marked_areas_t: new_marked_areas_t.clone(),
-            old_marked_areas_ct: marked_areas_ct.clone(),
-            old_marked_areas_t: marked_areas_t.clone(),
-            visibility_connections: visibility_connections.clone(),
-            contains_new_connections: !visible_areas.is_empty(),
+            new_marked_areas_ct: mem::take(&mut new_marked_areas_ct),
+            new_marked_areas_t: mem::take(&mut new_marked_areas_t),
+            visibility_connections: mem::take(&mut visibility_connections),
         });
 
         last_plotted = round_up_to_next_100(current_area.distance);
-
-        marked_areas_ct.extend(&new_marked_areas_ct);
-        marked_areas_t.extend(&new_marked_areas_t);
-        new_marked_areas_ct.clear();
-        new_marked_areas_t.clear();
-
-        // Currently we only want the new connections of each frame to be shown.
-        // At least for the fine style right now because otherwise there are
-        // ALOT of connections.
-        // We will see how it will be with rough style.
-        if style == SpreadStyle::Fine {
-            visibility_connections.clear();
-        }
     }
+    p_bar.for_each(|()| {});
+    println!(); // Newline after tqdm so bars dont override each other.
     result
 }
 
-fn newly_visible(
+fn newly_visible<'a>(
     current_area: &SpawnDistance,
-    previous_opposing_areas: &[&SpawnDistance],
+    previous_opposing_areas: &'a [&'a SpawnDistance],
     vis_checker: &CollisionChecker,
     own_spotted_areas: &mut HashSet<u32>,
     opposing_spotted_areas: &mut HashSet<u32>,
     style: SpreadStyle,
-) -> Vec<SpawnDistance> {
+    visibility_cache: Option<&HashMap<(u32, u32), bool>>,
+) -> Vec<&'a SpawnDistance> {
     match style {
         SpreadStyle::Fine => newly_visible_fine(
             current_area,
@@ -284,6 +284,7 @@ fn newly_visible(
             vis_checker,
             own_spotted_areas,
             opposing_spotted_areas,
+            visibility_cache,
         ),
         SpreadStyle::Rough => newly_visible_rough(
             current_area,
@@ -291,17 +292,19 @@ fn newly_visible(
             vis_checker,
             own_spotted_areas,
             opposing_spotted_areas,
+            visibility_cache,
         ),
     }
 }
 
-fn newly_visible_rough(
+fn newly_visible_rough<'a>(
     current_area: &SpawnDistance,
-    previous_opposing_areas: &[&SpawnDistance],
+    previous_opposing_areas: &'a [&'a SpawnDistance],
     vis_checker: &CollisionChecker,
     own_spotted_areas: &mut HashSet<u32>,
     opposing_spotted_areas: &mut HashSet<u32>,
-) -> Vec<SpawnDistance> {
+    visibility_cache: Option<&HashMap<(u32, u32), bool>>,
+) -> Vec<&'a SpawnDistance> {
     if current_area
         .path
         .iter()
@@ -311,34 +314,43 @@ fn newly_visible_rough(
     }
 
     let mut results = Vec::new();
-    let mut sorted_opposing_areas = previous_opposing_areas.to_vec();
-    sorted_opposing_areas.sort_by(|a, b| a.distance.partial_cmp(&b.distance).unwrap());
-
-    for opposing_area in sorted_opposing_areas {
-        if areas_visible(&current_area.area, &opposing_area.area, vis_checker) {
+    // Previous opposing areas should already be sorted by distance.
+    for &opposing_area in previous_opposing_areas {
+        if areas_visible(
+            &current_area.area,
+            &opposing_area.area,
+            vis_checker,
+            visibility_cache,
+        ) {
             own_spotted_areas.insert(current_area.area.area_id);
             opposing_spotted_areas.insert(opposing_area.area.area_id);
-            results.push(opposing_area.clone());
+            results.push(opposing_area);
         }
     }
     results
 }
 
-fn newly_visible_fine(
+fn newly_visible_fine<'a>(
     current_area: &SpawnDistance,
-    previous_opposing_areas: &[&SpawnDistance],
+    previous_opposing_areas: &'a [&'a SpawnDistance],
     vis_checker: &CollisionChecker,
     own_spotted_areas: &HashSet<u32>,
     opposing_spotted_areas: &HashSet<u32>,
-) -> Vec<SpawnDistance> {
+    visibility_cache: Option<&HashMap<(u32, u32), bool>>,
+) -> Vec<&'a SpawnDistance> {
     previous_opposing_areas
-        .iter()
+        .par_iter()
         .filter(|opposing_area| {
             !(own_spotted_areas.contains(&current_area.area.area_id)
                 && opposing_spotted_areas.contains(&opposing_area.area.area_id))
-                && areas_visible(&current_area.area, &opposing_area.area, vis_checker)
+                && areas_visible(
+                    &current_area.area,
+                    &opposing_area.area,
+                    vis_checker,
+                    visibility_cache,
+                )
         })
-        .map(|&s| s.clone())
+        .copied()
         .collect()
 }
 

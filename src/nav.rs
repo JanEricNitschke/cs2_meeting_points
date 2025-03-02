@@ -6,6 +6,7 @@ use crate::constants::{
 use crate::position::{Position, inverse_distance_weighting};
 use crate::utils::create_file_with_parents;
 
+use bincode::{deserialize_from, serialize_into};
 use geo::algorithm::line_measures::metric_spaces::Euclidean;
 use geo::geometry::{LineString, Point, Polygon};
 use geo::{Centroid, Contains, Distance, Intersects};
@@ -14,11 +15,12 @@ use petgraph::algo::astar;
 use petgraph::graphmap::DiGraphMap;
 use petgraph::visit::EdgeRef;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use rustc_hash::FxHashMap as HashMap;
+use rustc_hash::FxHashSet as HashSet;
 use serde::de::{self, MapAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize};
 use simple_tqdm::{Config, ParTqdm, Tqdm};
 use std::cmp::Ordering;
-use std::collections::{HashMap, HashSet};
 use std::f64;
 use std::fmt;
 use std::fs::File;
@@ -43,6 +45,7 @@ impl From<DynamicAttributeFlags> for u32 {
 pub trait AreaLike {
     fn centroid(&self) -> Position;
     fn requires_crouch(&self) -> bool;
+    fn area_id(&self) -> u32;
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -96,10 +99,6 @@ impl NavArea {
             ladders_below,
             centroid,
         }
-    }
-
-    pub fn connected_areas(&self) -> HashSet<u32> {
-        self.connections.iter().copied().collect()
     }
 
     /// Compute the 2D polygon area (ignoring z) using the shoelace formula.
@@ -229,20 +228,9 @@ impl AreaLike for NavArea {
     fn requires_crouch(&self) -> bool {
         self.dynamic_attribute_flags == CROUCHING_ATTRIBUTE_FLAG
     }
-}
 
-impl std::fmt::Display for NavArea {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut conn_ids: Vec<_> = self.connected_areas().into_iter().collect();
-        conn_ids.sort_unstable();
-        write!(
-            f,
-            "NavArea(id={}, connected_ids={:?}, points={:?}, size={})",
-            self.area_id,
-            conn_ids,
-            self.corners,
-            self.size()
-        )
+    fn area_id(&self) -> u32 {
+        self.area_id
     }
 }
 
@@ -308,8 +296,8 @@ impl Nav {
 
         // Add edges
         for (area_id, area) in &areas {
-            for connected_area_id in area.connected_areas() {
-                let connected_area = &areas[&connected_area_id];
+            for connected_area_id in &area.connections {
+                let connected_area = &areas[connected_area_id];
                 let dx = area.centroid().x - connected_area.centroid().x;
                 let dy = area.centroid().y - connected_area.centroid().y;
                 let dist_weight = dx.hypot(dy);
@@ -334,7 +322,7 @@ impl Nav {
                 let time_adjusted =
                     (area_time_adjusted_distance + connected_area_time_adjusted_distance) / 2.0;
 
-                graph.add_edge(*area_id, connected_area_id, time_adjusted);
+                graph.add_edge(*area_id, *connected_area_id, time_adjusted);
             }
         }
 
@@ -403,8 +391,6 @@ impl Nav {
 
             AreaIdent::Id(id) => id,
         };
-
-        // Call astar_path from networkx with our heuristic.
         let Some((distance, path_ids)) = astar(
             &self.graph,
             start_area,
@@ -414,7 +400,7 @@ impl Nav {
         ) else {
             return PathResult {
                 path: Vec::new(),
-                distance: f64::INFINITY,
+                distance: f64::MAX,
             };
         };
 
@@ -468,10 +454,6 @@ impl Nav {
         }
     }
 
-    pub fn floyd_warshall(&self) -> HashMap<(u32, u32), f64> {
-        petgraph::algo::floyd_warshall(&self.graph, |e| *e.weight()).unwrap()
-    }
-
     pub fn save_to_json(self, filename: &Path) {
         let mut file = create_file_with_parents(filename);
         let helper = NavSerializationHelperStruct {
@@ -485,8 +467,8 @@ impl Nav {
 
     // Load a struct instance from a JSON file
     pub fn from_json(filename: &Path) -> Self {
-        let mut file = File::open(filename).unwrap();
-        let helper: NavSerializationHelperStruct = serde_json::from_reader(&mut file).unwrap();
+        let file = File::open(filename).unwrap();
+        let helper: NavSerializationHelperStruct = serde_json::from_reader(file).unwrap();
         Self::new(
             helper.version,
             helper.sub_version,
@@ -496,7 +478,16 @@ impl Nav {
     }
 }
 
-pub fn areas_visible<T: AreaLike>(area1: &T, area2: &T, vis_checker: &CollisionChecker) -> bool {
+pub fn areas_visible<T: AreaLike>(
+    area1: &T,
+    area2: &T,
+    vis_checker: &CollisionChecker,
+    visibility_cache: Option<&HashMap<(u32, u32), bool>>,
+) -> bool {
+    if let Some(cache) = visibility_cache {
+        return cache[&(area1.area_id(), area2.area_id())];
+    }
+
     let height_correction = PLAYER_EYE_LEVEL;
 
     let area1_centroid = area1.centroid();
@@ -516,7 +507,47 @@ pub fn areas_visible<T: AreaLike>(area1: &T, area2: &T, vis_checker: &CollisionC
     vis_checker.connection_unobstructed(used_centroid1, used_centroid2)
 }
 
-fn areas_walkable<T: AreaLike>(area1: &T, area2: &T, walk_checker: &CollisionChecker) -> bool {
+pub fn get_visibility_cache(
+    map_name: &str,
+    granularity: usize,
+    nav: &Nav,
+    vis_checker: &CollisionChecker,
+) -> HashMap<(u32, u32), bool> {
+    let tqdm_config = Config::new().with_leave(true);
+    let cache_path_str =
+        format!("./data/collisions/{map_name}_{granularity}_visibility_cache.vis_cache");
+    let cache_path = Path::new(&cache_path_str);
+    if cache_path.exists() {
+        println!("Loading visibility cache from binary.");
+        let file = File::open(cache_path).unwrap();
+        deserialize_from(file).unwrap()
+    } else {
+        println!("Building visibility cache from scratch.");
+        let mut file = create_file_with_parents(cache_path);
+        let visibility_cache = iproduct!(&nav.areas, &nav.areas)
+            .collect::<Vec<_>>()
+            .par_iter()
+            .tqdm_config(tqdm_config.with_desc("Building visibility cache"))
+            .map(|((area_id, area), (other_area_id, other_area))| {
+                let visible = areas_visible(*area, *other_area, vis_checker, None);
+                ((**area_id, **other_area_id), visible)
+            })
+            .collect();
+        serialize_into(&mut file, &visibility_cache).unwrap();
+        visibility_cache
+    }
+}
+
+fn areas_walkable<T: AreaLike>(
+    area1: &T,
+    area2: &T,
+    walk_checker: &CollisionChecker,
+    walkable_cache: Option<&HashMap<(u32, u32), bool>>,
+) -> bool {
+    if let Some(cache) = walkable_cache {
+        return cache[&(area1.area_id(), area2.area_id())];
+    }
+
     let height = if area1.requires_crouch() || area2.requires_crouch() {
         PLAYER_CROUCH_HEIGHT
     } else {
@@ -551,6 +582,33 @@ fn areas_walkable<T: AreaLike>(area1: &T, area2: &T, walk_checker: &CollisionChe
         }
     }
     true
+}
+
+pub fn get_walkability_cache(
+    map_name: &str,
+    granularity: usize,
+    nav: &Nav,
+    walk_checker: &CollisionChecker,
+) -> HashMap<(u32, u32), bool> {
+    let tqdm_config = Config::new().with_leave(true);
+    let cache_path_str =
+        format!("./data/collisions/{map_name}_{granularity}_walkability_cache.json");
+    let cache_path = Path::new(&cache_path_str);
+    if cache_path.exists() {
+        let file = File::open(cache_path).unwrap();
+        serde_json::from_reader(file).unwrap()
+    } else {
+        let mut file = create_file_with_parents(cache_path);
+        let mut walkability_cache = HashMap::default();
+        for ((area_id, area), (other_area_id, other_area)) in iproduct!(&nav.areas, &nav.areas)
+            .tqdm_config(tqdm_config.with_desc("Building walkability cache"))
+        {
+            let visible = areas_walkable(area, other_area, walk_checker, None);
+            walkability_cache.insert((*area_id, *other_area_id), visible);
+        }
+        serde_json::to_writer(&mut file, &walkability_cache).unwrap();
+        walkability_cache
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -594,6 +652,10 @@ impl AreaLike for NewNavArea {
     }
     fn requires_crouch(&self) -> bool {
         self.dynamic_attribute_flags == CROUCHING_ATTRIBUTE_FLAG
+    }
+
+    fn area_id(&self) -> u32 {
+        self.area_id
     }
 }
 
@@ -646,8 +708,8 @@ fn create_new_nav_areas(
 
         // TODO: Create tiles and their z coordinate by player clipping collisions
         // with heaven to floor rays?
-        let mut primary_origs: HashSet<u32> = HashSet::new();
-        let mut extra_orig_ids: HashSet<u32> = HashSet::new();
+        let mut primary_origs: HashSet<u32> = HashSet::default();
+        let mut extra_orig_ids: HashSet<u32> = HashSet::default();
         for (area_id, info) in area_extra_info {
             if info.polygon.contains(&center_point) {
                 primary_origs.insert(*area_id);
@@ -675,13 +737,13 @@ fn create_new_nav_areas(
                     .partial_cmp(&distance_b)
                     .unwrap_or(Ordering::Equal)
             });
-            HashSet::from([*min_id.unwrap()])
+            HashSet::from_iter([*min_id.unwrap()])
         } else {
             primary_origs
         };
 
         for primary in primary_origs {
-            let mut cell_orig_ids = HashSet::from([primary]);
+            let mut cell_orig_ids = HashSet::from_iter([primary]);
             let primary_z =
                 inverse_distance_weighting(&nav_areas[&primary].corners, (center_x, center_y));
 
@@ -708,7 +770,7 @@ fn create_new_nav_areas(
                 HashSet::from_iter(primary_area.ladders_above.clone()),
                 HashSet::from_iter(primary_area.ladders_below.clone()),
                 primary_area.dynamic_attribute_flags,
-                HashSet::new(),
+                HashSet::default(),
             ));
         }
     }
@@ -721,7 +783,7 @@ fn create_new_nav_areas(
 
 #[allow(clippy::cast_possible_truncation)]
 fn build_old_to_new_mapping(new_cells: &mut [NewNavArea]) -> HashMap<u32, HashSet<u32>> {
-    let mut old_to_new_children: HashMap<u32, HashSet<u32>> = HashMap::new();
+    let mut old_to_new_children: HashMap<u32, HashSet<u32>> = HashMap::default();
 
     for (idx, new_cell) in new_cells.iter_mut().enumerate() {
         new_cell.area_id = idx as u32;
@@ -748,7 +810,7 @@ pub fn regularize_nav_areas(
 
     let mut xs: Vec<f64> = Vec::new();
     let mut ys: Vec<f64> = Vec::new();
-    let mut area_extra_info: HashMap<u32, AdditionalNavAreaInfo> = HashMap::new();
+    let mut area_extra_info: HashMap<u32, AdditionalNavAreaInfo> = HashMap::default();
     let walk_checker = load_collision_checker(map_name, CollisionCheckerStyle::Walkability);
 
     // Precompute the 2D polygon projection and an average-z for each nav area
@@ -772,7 +834,7 @@ pub fn regularize_nav_areas(
     }
 
     if xs.is_empty() || ys.is_empty() {
-        return HashMap::new();
+        return HashMap::default();
     }
 
     let (mut new_nav_areas, old_to_new_children) = create_new_nav_areas(
@@ -882,7 +944,7 @@ fn add_connections_by_reachability(
         .par_iter()
         .tqdm_config(tqdm_config.with_desc("Connections from reachability"))
         .map(|area| {
-            let mut conns = HashSet::new();
+            let mut conns = HashSet::default();
             for other_area in &*new_nav_areas {
                 if area.area_id == other_area.area_id
                     || area.connections.contains(&other_area.area_id)
@@ -893,7 +955,7 @@ fn add_connections_by_reachability(
                 if (!area.ladders_above.is_disjoint(&other_area.ladders_below))
                     || (!area.ladders_below.is_disjoint(&other_area.ladders_above))
                     || (area.centroid().can_jump_to(&other_area.centroid())
-                        && areas_walkable(area, other_area, walk_checker))
+                        && areas_walkable(area, other_area, walk_checker, None))
                 {
                     conns.insert(other_area.area_id);
                 }
