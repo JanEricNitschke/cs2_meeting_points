@@ -26,7 +26,7 @@ def needs_regeneration(last_run_time: datetime, last_update_time: datetime) -> b
 
 def get_last_update_time() -> datetime:
     command = [
-        "./steamcmd",
+        "steamcmd",
         "+login",
         "anonymous",
         "+app_info_print",

@@ -56,7 +56,6 @@ jobs:
         env:
           PYTHONIOENCODING: "utf-8"
         run: |
-          Get-ChildItem -Force
           # Run the update script and capture its output (expected "true" or "false")
           $requiresUpdate = uv run -q --with vdf ../scripts/check_regeneration_needed.py ../scripts/last_run_time.txt
           echo "requiresUpdate=$requiresUpdate" >> $env:GITHUB_OUTPUT
