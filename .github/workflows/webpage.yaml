@@ -7,14 +7,19 @@ on:
     - cron: "49 1 * * *" # Run at 1:49 AM UTC every day
   workflow_dispatch:
 
-permissions:
-  contents: write
 
 env:
   PYTHON_VERSION: 3.13
   SOURCE2_VIEWER_URL: https://github.com/ValveResourceFormat/ValveResourceFormat/releases/download/11.1/cli-windows-x64.zip
   CS2_APP_ID: 730
   CARGO_TERM_COLOR: always
+
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
 
 jobs:
   get-map-files:
@@ -159,21 +164,77 @@ jobs:
       - name: Generate plot input
         run: |
           cargo run --release -- nav-analysis ${{ matrix.map-name }}
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+      - name: Set up Python
+        run: |
+          uv python install ${{ env.PYTHON_VERSION }}
       - name: Generate plots
         run: |
           uv run -q --no-project --with tqdm --with matplotlib --with numpy --with pillow scripts/plot_spread.py ${{ matrix.map-name }}
       - name: Upload map files
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.map-name }}
+          name: webpage-data
           path: |
-            results/
-            spread_images/
-            spread_gifs/
+            webpage_data/*.json
       - name: Commit regenerated files
         run: |
           git config --global user.name 'Jan-Eric Nitschke'
           git config --global user.email 'JanEricNitschke@users.noreply.github.com'
+          git pull --rebase origin main
           git add spread_images spread_gifs
           git commit -am "Updating map images for ${{ matrix.map-name }}"
           git push
+
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    needs: get-map-files
+    runs-on: ubuntu-latest
+    # Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
+    # However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
+    concurrency:
+      group: "pages"
+      cancel-in-progress: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download JSON artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: webpage-data
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+      - name: Set up Python
+        run: |
+          uv python install ${{ env.PYTHON_VERSION }}
+      - name: Merge JSON and update index.html
+        run: |
+          uv run -q --no-project scripts/update_webpage_data.py
+
+      - name: Commit regenerated files
+        run: |
+          git config --global user.name 'Jan-Eric Nitschke'
+          git config --global user.email 'JanEricNitschke@users.noreply.github.com'
+          git pull --rebase origin main
+          git add index.html
+          git commit -am "Updating index.html"
+          git push
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # Upload entire repository
+          path: |
+            index.html
+            spread_images/
+            spread_gifs/
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

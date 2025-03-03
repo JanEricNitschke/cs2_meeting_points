@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>Dynamic Game Map Gallery with LightGallery</title>
+    <!-- LightGallery CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lightgallery@2.8.3/css/lightgallery-bundle.min.css" />
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+
+        #gifContainer {
+            margin-top: 20px;
+        }
+
+        #gifContainer img {
+            max-width: 400px;
+        }
+
+        #galleryContainer {
+            margin-top: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        #galleryContainer a img {
+            cursor: pointer;
+            max-width: 200px;
+            border: 2px solid #ccc;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Game Map Gallery</h1>
+    <label for="mapSelect">Select a map:</label>
+    <select id="mapSelect">
+        <option value="">--Select a map--</option>
+    </select>
+
+    <div id="gifContainer">
+        <!-- GIF for the selected map will be shown here -->
+    </div>
+
+    <div id="galleryContainer">
+        <!-- Gallery images will be added here -->
+    </div>
+
+    <!-- Include LightGallery JS -->
+    <script src="https://cdn.jsdelivr.net/npm/lightgallery@2.8.3/lightgallery.umd.min.js"></script>
+    <!-- Optional plugins -->
+    <script src="https://cdn.jsdelivr.net/npm/lightgallery@2.8.3/plugins/thumbnail/lg-thumbnail.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lightgallery@2.8.3/plugins/zoom/lg-zoom.umd.min.js"></script>
+
+    <!-- Placeholder for generated gallery data -->
+    <script>
+        // Replace this placeholder with actual data.
+        // galleryData = {
+        //     "map1": {
+        //         "gif": "spread_gifs/map1/animation.gif",
+        //         "images": [
+        //             "spread_images/map1/img1.jpg",
+        //             "spread_images/map1/img2.jpg"
+        //         ]
+        //     }
+        // };
+        const galleryData = __GALLERY_DATA__;
+    </script>
+
+    <!-- Main script -->
+    <script>
+        let lgInstance = null;
+        const mapSelect = document.getElementById("mapSelect");
+        const gifContainer = document.getElementById("gifContainer");
+        const galleryContainer = document.getElementById("galleryContainer");
+
+        // Dynamically populate the select options
+        Object.keys(galleryData).forEach((mapName) => {
+            const option = document.createElement("option");
+            option.value = mapName;
+            option.textContent = mapName;
+            mapSelect.appendChild(option);
+        });
+
+        function loadGallery(mapName) {
+            // Clear previous content
+            gifContainer.innerHTML = "";
+            galleryContainer.innerHTML = "";
+
+            // Destroy any previously initialized LightGallery instance
+            if (lgInstance) {
+                lgInstance.destroy();
+                lgInstance = null;
+            }
+
+            if (galleryData[mapName]) {
+                // Display the map's GIF
+                const gif = document.createElement("img");
+                gif.src = galleryData[mapName].gif;
+                gif.alt = mapName + " GIF";
+                gifContainer.appendChild(gif);
+
+                // Build lightGallery markup: Wrap each image in an anchor tag.
+                galleryData[mapName].images.forEach((imgSrc, idx) => {
+                    const anchor = document.createElement("a");
+                    anchor.href = imgSrc;
+                    anchor.dataset.subHtml = `<h4>${mapName} image ${idx + 1}</h4>`;
+                    const thumbnail = document.createElement("img");
+                    thumbnail.src = imgSrc;
+                    thumbnail.alt = `${mapName} image ${idx + 1}`;
+                    anchor.appendChild(thumbnail);
+                    galleryContainer.appendChild(anchor);
+                });
+
+                // Initialize LightGallery with speed set to 0 (instant swap)
+                lgInstance = lightGallery(galleryContainer, {
+                    selector: "a",
+                    plugins: [lgThumbnail, lgZoom],
+                    speed: 0
+                });
+            }
+        }
+
+        mapSelect.addEventListener("change", (e) => {
+            loadGallery(e.target.value);
+        });
+    </script>
+</body>
+
+</html>

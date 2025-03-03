@@ -341,10 +341,9 @@ def plot_spread_from_input(map_name: str, granularity: str, style: MeetingStyle,
     per_image_axis = fig.add_axes(axis.get_position(), sharex=axis, sharey=axis)
     per_image_axis.axis("off")
 
-    for idx, spread_point in enumerate(tqdm(spread_input[:30], desc="Plotting spreads")):
-        contains_new_connection = bool(spread_point.visibility_connections)
-        new_conn_str = "_new" if contains_new_connection else ""
+    image_names: list[str] = []
 
+    for idx, spread_point in enumerate(tqdm(spread_input[:30], desc="Plotting spreads")):
         _plot_tiles(
             {area_id: nav.areas[area_id] for area_id in (marked_areas_ct | marked_areas_t)},
             map_name=map_name,
@@ -386,8 +385,10 @@ def plot_spread_from_input(map_name: str, granularity: str, style: MeetingStyle,
                 highlight_area1=style == "rough",
             )
 
+        image_path = image_dir / f"spread_{map_name}_{granularity}_{idx}.png"
+        image_names.append(str(image_path))
         plt.savefig(
-            image_dir / f"spread_{map_name}_{granularity}{new_conn_str}_{idx}.png",
+            image_path,
             bbox_inches="tight",
             dpi=300,
         )
@@ -402,8 +403,9 @@ def plot_spread_from_input(map_name: str, granularity: str, style: MeetingStyle,
         per_image_axis.axis("off")
 
     print("Creating gif.", flush=True)
+    gif_path = gif_dir / "spread.gif"
     frames[0].save(
-        gif_dir / "spread.gif",
+        gif_path,
         save_all=True,
         append_images=frames[1:],
         duration=[400 if bool(entry.visibility_connections) else 200 for entry in spread_input],
@@ -412,6 +414,10 @@ def plot_spread_from_input(map_name: str, granularity: str, style: MeetingStyle,
 
     fig.clear()
     plt.close(fig)
+
+    webpage_data_path = Path("webpage_data") / f"{map_name}.json"
+    webpage_data_path.mkdir(exist_ok=True, parents=True)
+    webpage_data_path.write_text(json.dumps({map_name: {"gif": str(gif_path), "images": image_names}}))
 
 
 if __name__ == "__main__":
