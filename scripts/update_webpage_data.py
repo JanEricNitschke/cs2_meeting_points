@@ -13,7 +13,7 @@ GalleryData = dict[str, MapData]
 
 def merge_json_files(directory: pathlib.Path) -> GalleryData:
     """Merge all JSON files in the given directory into a single dictionary."""
-    merged_data = {}
+    merged_data: GalleryData = {}
 
     for file in directory.glob("*.json"):
         with file.open("r", encoding="utf-8") as f:

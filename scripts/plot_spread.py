@@ -160,7 +160,7 @@ class MapData(TypedDict):
     lower_level_max_units: float
 
 
-MAP_DATA: dict[str, MapData] = json.loads((Path(__file__).parent / "../maps/map_data.json").read_bytes())
+MAP_DATA: dict[str, MapData] = json.loads((Path(__file__).parent / "../maps/map-data.json").read_bytes())
 
 
 def game_to_pixel(map_name: str, position: Vector3) -> tuple[float, float, float]:

@@ -163,6 +163,11 @@ jobs:
           name: map-artifacts
       - name: Generate plot input
         run: |
+          Get-ChildItem -Force
+          Get-ChildItem -Path "nav" -Force
+          Get-ChildItem -Path "tri" -Force
+          Get-ChildItem -Path "spawns" -Force
+          Get-ChildItem -Path "maps" -Force
           cargo run --release -- nav-analysis ${{ matrix.map-name }}
       - name: Install uv
         uses: astral-sh/setup-uv@v5
