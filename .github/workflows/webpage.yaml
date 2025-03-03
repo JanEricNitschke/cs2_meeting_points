@@ -73,12 +73,28 @@ jobs:
           Invoke-WebRequest -Uri $env:SOURCE2_VIEWER_URL -OutFile ".\cli-windows-x64.zip"
           Expand-Archive -Path .\cli-windows-x64.zip -DestinationPath . -Force
 
-      - name: Generate map files
+      - name: Generate Triangles
         if: steps.check_time.outputs.requiresUpdate == 'true'
         run: |
+          Get-ChildItem -Force
           .\scripts\generate-tris.ps1 -inputPath "cs_go\game\csgo\maps"
+
+      - name: Generate Map Data
+        if: steps.check_time.outputs.requiresUpdate == 'true'
+        run: |
+          Get-ChildItem -Force
           .\scripts\generate-maps.ps1 -inputPath "cs_go\game\csgo\pak01_dir.vpk"
-          .\scripts\generate-navs.ps1 -inputPath "cs_go\game\csgo\maps"          
+
+      - name: Generate Nav
+        if: steps.check_time.outputs.requiresUpdate == 'true'
+        run: |
+          Get-ChildItem -Force
+          .\scripts\generate-navs.ps1 -inputPath "cs_go\game\csgo\maps"
+
+      - name: Generate Spawns
+        if: steps.check_time.outputs.requiresUpdate == 'true'
+        run: |
+          Get-ChildItem -Force
           .\scripts\generate-spawns.ps1 -inputPath "cs_go\game\csgo\maps"
 
       - name: Upload map files
@@ -96,7 +112,7 @@ jobs:
         if: steps.check_time.outputs.requiresUpdate == 'true'
         run: |
           mv awpy/maps/ .
-          mv awpy/navs/ .
+          mv awpy/nav/ .
           mv awpy/spawns/ .
           mv awpy/tris/ .
           cargo build --release
