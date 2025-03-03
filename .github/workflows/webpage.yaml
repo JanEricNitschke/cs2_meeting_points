@@ -127,7 +127,7 @@ jobs:
         uses: actions-rust-lang/setup-rust-toolchain@v1
       - name: Build
         run: |
-          _RJEM_MALLOC_CONF = "thp:always,metadata_thp:always" cargo build --release --verbose
+          cargo build --release
       - name: Retrieve map artifacts
         uses: actions/download-artifact@v4
         with:
