@@ -112,7 +112,7 @@ jobs:
           cargo build --release
           $mapNamesToUpdate = ./target/release/cs2_meeting_points process-maps
           echo $mapNamesToUpdate
-          echo "mapNamesToUpdate=$mapNamesToUpdate" >> "$GITHUB_OUTPUT"
+          echo "mapNamesToUpdate=$mapNamesToUpdate" >> $env:GITHUB_OUTPUT
         working-directory: main
 
       - name: Upload map files
