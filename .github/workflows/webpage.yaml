@@ -32,8 +32,9 @@ jobs:
       - name: Checkout awpy
         uses: actions/checkout@v4
         with:
-          repository: pnxenopoulos/awpy
+          repository: JanEricNitschke/csgo
           path: main/awpy
+          ref: allow-parsing-of-clippings
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
@@ -79,10 +80,6 @@ jobs:
           .\scripts\generate-maps.ps1 -inputPath "cs_go\game\csgo\pak01_dir.vpk"
           .\scripts\generate-navs.ps1 -inputPath "cs_go\game\csgo\maps"          
           .\scripts\generate-spawns.ps1 -inputPath "cs_go\game\csgo\maps"
-          mv maps/ ..
-          mv navs/ ..
-          mv spawns/ ..
-          mv tris/ ..
 
       - name: Upload map files
         if: steps.check_time.outputs.requiresUpdate == 'true'
@@ -98,6 +95,10 @@ jobs:
       - name: Get map names
         if: steps.check_time.outputs.requiresUpdate == 'true'
         run: |
+          mv awpy/maps/ .
+          mv awpy/navs/ .
+          mv awpy/spawns/ .
+          mv awpy/tris/ .
           cargo build --release
           $mapNamesToUpdate = ./target/release/cs2_meeting_points process-maps
           echo "mapNamesToUpdate=$mapNamesToUpdate" >> $env:GITHUB_OUTPUT
