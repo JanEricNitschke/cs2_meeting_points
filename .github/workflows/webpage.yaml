@@ -108,7 +108,8 @@ jobs:
           Get-ChildItem -Force
           cargo build --release
           $mapNamesToUpdate = ./target/release/cs2_meeting_points process-maps
-          echo "mapNamesToUpdate=$mapNamesToUpdate" >> $env:GITHUB_OUTPUT
+          echo $mapNamesToUpdate
+          echo "mapNamesToUpdate=$mapNamesToUpdate" >> "$GITHUB_OUTPUT"
         working-directory: main
 
       - name: Upload map files
@@ -117,10 +118,10 @@ jobs:
         with:
           name: map-artifacts
           path: |
-            ./nav
-            ./tri
-            ./maps
-            ./spawns
+            main/nav
+            main/tri
+            main/maps
+            main/spawns
 
       - name: Commit regenerated files
         if: steps.check_time.outputs.requiresUpdate == 'true'
