@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import patches
 from matplotlib.axes import Axes
-from matplotlib.collections import PatchCollection
+from matplotlib.collections import LineCollection, PatchCollection
 from PIL import Image
 from tqdm import tqdm
 
@@ -123,11 +123,7 @@ class SpawnDistance:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Self:
-        return cls(
-            area=NavArea.from_dict(data["area"]),
-            distance=data["distance"],
-            path=data["path"],
-        )
+        return cls(area=NavArea.from_dict(data["area"]), distance=data["distance"], path=data["path"])
 
 
 @dataclass
@@ -226,14 +222,7 @@ def _plot_tiles(
     if show_z:
         for area in map_areas.values():
             x, y, _ = game_to_pixel(map_name, area.centroid)
-            axis.text(
-                x,
-                y,
-                str(round(area.centroid.z)),
-                fontsize=2,
-                color="black",
-                ha="center",
-            )
+            axis.text(x, y, str(round(area.centroid.z)), fontsize=2, color="black", ha="center")
     axis.add_collection(
         PatchCollection(
             [
@@ -260,15 +249,7 @@ def _plot_points(
 ) -> None:
     for point in points:
         x, y, _ = game_to_pixel(map_name, point)
-        axis.plot(
-            x,
-            y,
-            marker=marker,
-            color=color,
-            markersize=marker_size,
-            alpha=1.0,
-            zorder=10,
-        )
+        axis.plot(x, y, marker=marker, color=color, markersize=marker_size, alpha=1.0, zorder=10)
 
 
 def _plot_connection(
@@ -302,10 +283,12 @@ def _plot_path(
     lw: float = 0.3,
     linestyle: str = "solid",
 ) -> None:
-    for first, second in itertools.pairwise(path):
-        x1, y1, _ = game_to_pixel(map_name, first.centroid)
-        x2, y2, _ = game_to_pixel(map_name, second.centroid)
-        axis.plot([x1, x2], [y1, y2], color=color, lw=lw, linestyle=linestyle)
+    lines = [
+        [game_to_pixel(map_name, first.centroid)[:2], game_to_pixel(map_name, second.centroid)[:2]]
+        for first, second in itertools.pairwise(path)
+    ]
+    line_collection = LineCollection(lines, colors=color, linewidths=lw, linestyle=linestyle)
+    axis.add_collection(line_collection)
 
 
 def _plot_visibility_connection(
@@ -324,20 +307,10 @@ def _plot_visibility_connection(
     _plot_tiles({0: area1.area, 1: area2.area}, map_name, axis, color=color)
     _plot_connection(area1.area, area2.area, map_name, axis, with_arrows=False, color=color, lw=lw)
     _plot_path(
-        [map_nav.areas[path_id] for path_id in area1.path],
-        axis,
-        map_name,
-        color=color,
-        linestyle="dashed",
-        lw=lw,
+        [map_nav.areas[path_id] for path_id in area1.path], axis, map_name, color=color, linestyle="dashed", lw=lw
     )
     _plot_path(
-        [map_nav.areas[path_id] for path_id in area2.path],
-        axis,
-        map_name,
-        color=color,
-        linestyle="dashed",
-        lw=lw,
+        [map_nav.areas[path_id] for path_id in area2.path], axis, map_name, color=color, linestyle="dashed", lw=lw
     )
 
 
@@ -356,17 +329,26 @@ def plot_spread_from_input(map_name: str, granularity: str, style: MeetingStyle,
 
     frames = []
 
-    for idx, spread_point in enumerate(tqdm(spread_input[:30], desc="Plotting spreads.")):
+    fig, axis = plot_map(map_name)
+    fig.set_size_inches(19.2, 21.6)
+    _plot_tiles(
+        nav.areas,
+        map_name=map_name,
+        axis=axis,
+        color="yellow",
+    )
+
+    per_image_axis = fig.add_axes(axis.get_position(), sharex=axis, sharey=axis)
+    per_image_axis.axis("off")
+
+    for idx, spread_point in enumerate(tqdm(spread_input[:30], desc="Plotting spreads")):
         contains_new_connection = bool(spread_point.visibility_connections)
         new_conn_str = "_new" if contains_new_connection else ""
-
-        fig, axis = plot_map(map_name)
-        fig.set_size_inches(19.2, 21.6)
 
         _plot_tiles(
             {area_id: nav.areas[area_id] for area_id in (marked_areas_ct | marked_areas_t)},
             map_name=map_name,
-            axis=axis,
+            axis=per_image_axis,
             color="olive",
         )
         _plot_tiles(
@@ -375,7 +357,7 @@ def plot_spread_from_input(map_name: str, granularity: str, style: MeetingStyle,
                 for area_id in (spread_point.new_marked_areas_ct | spread_point.new_marked_areas_t)
             },
             map_name=map_name,
-            axis=axis,
+            axis=per_image_axis,
             color="green",
         )
 
@@ -386,21 +368,11 @@ def plot_spread_from_input(map_name: str, granularity: str, style: MeetingStyle,
                 & (marked_areas_ct | spread_point.new_marked_areas_ct)
             },
             map_name=map_name,
-            axis=axis,
+            axis=per_image_axis,
             color="purple",
         )
         marked_areas_ct |= spread_point.new_marked_areas_ct
         marked_areas_t |= spread_point.new_marked_areas_t
-        _plot_tiles(
-            {
-                area_id: area
-                for area_id, area in nav.areas.items()
-                if area_id not in marked_areas_ct and area_id not in marked_areas_t
-            },
-            map_name=map_name,
-            axis=axis,
-            color="yellow",
-        )
 
         for area1, area2 in spread_point.visibility_connections:
             _plot_visibility_connection(
@@ -408,7 +380,7 @@ def plot_spread_from_input(map_name: str, granularity: str, style: MeetingStyle,
                 area2,
                 nav,
                 map_name,
-                axis,
+                per_image_axis,
                 color="red",
                 lw=1.0,
                 highlight_area1=style == "rough",
@@ -420,16 +392,16 @@ def plot_spread_from_input(map_name: str, granularity: str, style: MeetingStyle,
             dpi=300,
         )
 
-
         buf = io.BytesIO()
         buf.seek(0)
-        fig.savefig(buf, format="png") # , facecolor="black"
+        fig.savefig(buf, format="png")  # , facecolor="black"
         img = Image.open(buf)
         frames.append(img)
 
-        fig.clear()
-        plt.close(fig)
+        per_image_axis.cla()
+        per_image_axis.axis("off")
 
+    print("Creating gif.", flush=True)
     frames[0].save(
         gif_dir / "spread.gif",
         save_all=True,
@@ -437,6 +409,9 @@ def plot_spread_from_input(map_name: str, granularity: str, style: MeetingStyle,
         duration=[400 if bool(entry.visibility_connections) else 200 for entry in spread_input],
         disposal=2,
     )
+
+    fig.clear()
+    plt.close(fig)
 
 
 if __name__ == "__main__":

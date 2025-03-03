@@ -1,8 +1,9 @@
+import argparse
+import re
 import subprocess
 from datetime import datetime, timezone
-import re
+
 import vdf
-import argparse
 
 
 def get_current_utc_time() -> datetime:
@@ -10,11 +11,11 @@ def get_current_utc_time() -> datetime:
 
 
 def read_last_run_time(time_file: str) -> str:
-    with open(time_file, "r") as f:
+    with open(time_file) as f:
         return f.read().strip()
 
 
-def write_last_run_time(time_file: str, utc_time: str):
+def write_last_run_time(time_file: str, utc_time: str) -> None:
     with open(time_file, "w") as f:
         f.write(utc_time)
         f.write("\n")
@@ -34,11 +35,11 @@ def get_last_update_time() -> datetime:
         "+logoff",
         "+quit",
     ]
-    result = subprocess.check_output(command).decode("utf-8")
+    result = subprocess.check_output(command).decode("utf-8")  # noqa: S603
     json_start = result.find("730")
     json_end_index = result.rfind("}")
     vdf_data = result[json_start : json_end_index + 1]
-    vdf_data = re.sub(r'^(?!\s*[{}]|.*".*").*$', "", vdf_data, flags=re.M)
+    vdf_data = re.sub(r'^(?!\s*[{}]|.*".*").*$', "", vdf_data, flags=re.MULTILINE)
     parsed_data = vdf.loads(vdf_data)
     timeline_marker_updated = int(
         parsed_data["730"]["common"]["timeline_marker_updated"]
@@ -46,7 +47,7 @@ def get_last_update_time() -> datetime:
     return datetime.fromtimestamp(timeline_marker_updated, timezone.utc)
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "time_file",
