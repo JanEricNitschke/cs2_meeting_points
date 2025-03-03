@@ -24,6 +24,8 @@ jobs:
     defaults:
       run:
         working-directory: main/awpy
+    outputs:
+        mapNamesToUpdate: ${{ steps.get-maps.outputs.mapNamesToUpdate }}  # Define the output
     steps:
       - name: Checkout this repo
         uses: actions/checkout@v4
@@ -98,6 +100,7 @@ jobs:
           .\scripts\generate-spawns.ps1 -inputPath "cs_go\game\csgo\maps"
 
       - name: Get map names
+        id: get-maps
         if: steps.check_time.outputs.requiresUpdate == 'true'
         run: |
           Get-ChildItem -Force
@@ -153,19 +156,24 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: map-artifacts
-      - name: Generate plots
+      - name: Generate plot input
         run: |
           cargo run --release -- nav-analysis ${{ matrix.map-name }}
-        working-directory: main
+      - name: Generate plots
+        run: |
+          uv run -q --no-project --with tqdm --with matplotlib --with numpy --with pillow scripts/plot_spread.py ${{ matrix.map-name }}
       - name: Upload map files
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.map-name }}
-          path: results
+          path: |
+            results/
+            spread_images/
+            spread_gifs/
       - name: Commit regenerated files
         run: |
           git config --global user.name 'Jan-Eric Nitschke'
           git config --global user.email 'JanEricNitschke@users.noreply.github.com'
-          git add results
+          git add spread_images spread_gifs
           git commit -am "Updating map images for ${{ matrix.map-name }}"
           git push

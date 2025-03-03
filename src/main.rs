@@ -169,6 +169,10 @@ fn main() {
             let map_areas = regularize_nav_areas(&old_nav.areas, granularity, map_name);
             let nav = Nav::new(0, 0, map_areas, true);
 
+            let json_path_str = format!("./nav/{map_name}_{granularity}.json");
+            let json_path = Path::new(&json_path_str);
+            nav.clone().save_to_json(json_path);
+
             let spawns_path = format!("./spawns/{map_name}.json");
             let spawns = Spawns::from_json(Path::new(&spawns_path));
             let spawn_distances = get_distances_from_spawns(&nav, &spawns);
@@ -177,16 +181,6 @@ fn main() {
 
             let visibility_cache =
                 get_visibility_cache(map_name, granularity, &nav, &vis_checker, false);
-
-            let rough_spreads = generate_spreads(
-                &spawn_distances.CT,
-                &spawn_distances.T,
-                SpreadStyle::Rough,
-                &visibility_cache,
-            );
-            let rough_spreads_path_str =
-                format!("./results/{map_name}_rough_spreads_{granularity}.json");
-            save_spreads_to_json(&rough_spreads, Path::new(&rough_spreads_path_str));
 
             let fine_spreads = generate_spreads(
                 &spawn_distances.CT,
