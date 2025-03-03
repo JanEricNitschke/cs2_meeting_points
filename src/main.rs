@@ -159,7 +159,7 @@ fn main() {
             let valid_maps = collect_valid_maps();
             let maps_to_update = process_maps(valid_maps);
 
-            println!("{maps_to_update:?}");
+            print!("{maps_to_update:?}");
         }
         Commands::NavAnalysis(args) => {
             let (map_name, granularity) = (&args.map_name, args.granularity);
