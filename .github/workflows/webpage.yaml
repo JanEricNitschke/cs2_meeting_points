@@ -103,18 +103,19 @@ jobs:
         with:
           name: map-artifacts
           path: |
-            nav/
-            tris/
-            maps/
-            spawns/
+            awpy/nav/
+            awpy/tri/
+            awpy/maps/
+            awpy/spawns/
 
       - name: Get map names
         if: steps.check_time.outputs.requiresUpdate == 'true'
         run: |
+          Get-ChildItem -Force
           mv awpy/maps/ .
           mv awpy/nav/ .
           mv awpy/spawns/ .
-          mv awpy/tris/ .
+          mv awpy/tri/ .
           cargo build --release
           $mapNamesToUpdate = ./target/release/cs2_meeting_points process-maps
           echo "mapNamesToUpdate=$mapNamesToUpdate" >> $env:GITHUB_OUTPUT

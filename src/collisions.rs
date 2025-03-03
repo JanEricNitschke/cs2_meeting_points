@@ -392,10 +392,7 @@ pub fn load_collision_checker(map_name: &str, style: CollisionCheckerStyle) -> C
         .expect("No parent found")
         .parent()
         .unwrap();
-    let tri_path = base
-        .join("data")
-        .join("tri")
-        .join(format!("{map_name}{postfix}.tri"));
+    let tri_path = base.join("tri").join(format!("{map_name}{postfix}.tri"));
     let mut binary_path = tri_path.clone();
     binary_path.set_extension("vis");
 

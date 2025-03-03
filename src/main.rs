@@ -40,8 +40,8 @@ mod utils;
 fn expected_files(map_name: &str) -> Vec<String> {
     vec![
         format!("maps/{}.png", map_name),
-        format!("tris/{}.tris", map_name),
-        format!("tris/{}-clippings.tris", map_name),
+        format!("tri/{}.tri", map_name),
+        format!("tri/{}-clippings.tri", map_name),
         format!("nav/{}.json", map_name),
         format!("spawns/{}.json", map_name),
     ]
