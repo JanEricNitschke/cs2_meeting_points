@@ -97,17 +97,6 @@ jobs:
           Get-ChildItem -Force
           .\scripts\generate-spawns.ps1 -inputPath "cs_go\game\csgo\maps"
 
-      - name: Upload map files
-        if: steps.check_time.outputs.requiresUpdate == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: map-artifacts
-          path: |
-            awpy/nav/
-            awpy/tri/
-            awpy/maps/
-            awpy/spawns/
-
       - name: Get map names
         if: steps.check_time.outputs.requiresUpdate == 'true'
         run: |
@@ -116,19 +105,32 @@ jobs:
           mv awpy/nav/ .
           mv awpy/spawns/ .
           mv awpy/tri/ .
+          Get-ChildItem -Force
           cargo build --release
           $mapNamesToUpdate = ./target/release/cs2_meeting_points process-maps
           echo "mapNamesToUpdate=$mapNamesToUpdate" >> $env:GITHUB_OUTPUT
         working-directory: main
+
+      - name: Upload map files
+        if: steps.check_time.outputs.requiresUpdate == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: map-artifacts
+          path: |
+            ./nav
+            ./tri
+            ./maps
+            ./spawns
 
       - name: Commit regenerated files
         if: steps.check_time.outputs.requiresUpdate == 'true'
         run: |
           git config --global user.name 'Jan-Eric Nitschke'
           git config --global user.email 'JanEricNitschke@users.noreply.github.com'
-          git add last_run_time.txt hashes/
+          git add scripts/last_run_time.txt hashes/
           git commit -am "Updating hashes and last run time"
           git push
+        working-directory: main
 
   generate-plots:
     runs-on: windows-latest
