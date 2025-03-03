@@ -1,6 +1,6 @@
 # This workflow will build the rust interpreter of lox
 
-name: rust
+name: build
 
 on:
   push:

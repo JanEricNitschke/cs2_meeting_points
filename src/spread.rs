@@ -1,5 +1,4 @@
-use crate::collisions::CollisionChecker;
-use crate::nav::{AreaIdent, Nav, NavArea, PathResult, areas_visible};
+use crate::nav::{AreaIdent, AreaLike, Nav, NavArea, PathResult};
 use crate::position::Position;
 use crate::utils::create_file_with_parents;
 use core::f64;
@@ -151,9 +150,8 @@ fn assert_sorted(spawn_distances: &[SpawnDistance]) {
 pub fn generate_spreads(
     spawn_distances_ct: &[SpawnDistance],
     spawn_distances_t: &[SpawnDistance],
-    vis_checker: &CollisionChecker,
     style: SpreadStyle,
-    visibility_cache: Option<&HashMap<(u32, u32), bool>>,
+    visibility_cache: &HashMap<(u32, u32), bool>,
 ) -> Vec<SpreadResult> {
     assert_sorted(spawn_distances_ct);
     assert_sorted(spawn_distances_t);
@@ -236,7 +234,6 @@ pub fn generate_spreads(
         let visible_areas = newly_visible(
             current_area,
             opposing_previous_areas,
-            vis_checker,
             own_spotted_areas,
             opposing_spotted_areas,
             style,
@@ -271,17 +268,15 @@ pub fn generate_spreads(
 fn newly_visible<'a>(
     current_area: &SpawnDistance,
     previous_opposing_areas: &'a [&'a SpawnDistance],
-    vis_checker: &CollisionChecker,
     own_spotted_areas: &mut HashSet<u32>,
     opposing_spotted_areas: &mut HashSet<u32>,
     style: SpreadStyle,
-    visibility_cache: Option<&HashMap<(u32, u32), bool>>,
+    visibility_cache: &HashMap<(u32, u32), bool>,
 ) -> Vec<&'a SpawnDistance> {
     match style {
         SpreadStyle::Fine => newly_visible_fine(
             current_area,
             previous_opposing_areas,
-            vis_checker,
             own_spotted_areas,
             opposing_spotted_areas,
             visibility_cache,
@@ -289,7 +284,6 @@ fn newly_visible<'a>(
         SpreadStyle::Rough => newly_visible_rough(
             current_area,
             previous_opposing_areas,
-            vis_checker,
             own_spotted_areas,
             opposing_spotted_areas,
             visibility_cache,
@@ -300,10 +294,9 @@ fn newly_visible<'a>(
 fn newly_visible_rough<'a>(
     current_area: &SpawnDistance,
     previous_opposing_areas: &'a [&'a SpawnDistance],
-    vis_checker: &CollisionChecker,
     own_spotted_areas: &mut HashSet<u32>,
     opposing_spotted_areas: &mut HashSet<u32>,
-    visibility_cache: Option<&HashMap<(u32, u32), bool>>,
+    visibility_cache: &HashMap<(u32, u32), bool>,
 ) -> Vec<&'a SpawnDistance> {
     if current_area
         .path
@@ -316,12 +309,7 @@ fn newly_visible_rough<'a>(
     let mut results = Vec::new();
     // Previous opposing areas should already be sorted by distance.
     for &opposing_area in previous_opposing_areas {
-        if areas_visible(
-            &current_area.area,
-            &opposing_area.area,
-            vis_checker,
-            visibility_cache,
-        ) {
+        if visibility_cache[&(current_area.area.area_id(), opposing_area.area.area_id())] {
             own_spotted_areas.insert(current_area.area.area_id);
             opposing_spotted_areas.insert(opposing_area.area.area_id);
             results.push(opposing_area);
@@ -333,22 +321,16 @@ fn newly_visible_rough<'a>(
 fn newly_visible_fine<'a>(
     current_area: &SpawnDistance,
     previous_opposing_areas: &'a [&'a SpawnDistance],
-    vis_checker: &CollisionChecker,
     own_spotted_areas: &HashSet<u32>,
     opposing_spotted_areas: &HashSet<u32>,
-    visibility_cache: Option<&HashMap<(u32, u32), bool>>,
+    visibility_cache: &HashMap<(u32, u32), bool>,
 ) -> Vec<&'a SpawnDistance> {
     previous_opposing_areas
         .par_iter()
         .filter(|opposing_area| {
             !(own_spotted_areas.contains(&current_area.area.area_id)
                 && opposing_spotted_areas.contains(&opposing_area.area.area_id))
-                && areas_visible(
-                    &current_area.area,
-                    &opposing_area.area,
-                    vis_checker,
-                    visibility_cache,
-                )
+                && visibility_cache[&(current_area.area.area_id(), opposing_area.area.area_id())]
         })
         .copied()
         .collect()

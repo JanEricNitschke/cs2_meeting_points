@@ -478,16 +478,7 @@ impl Nav {
     }
 }
 
-pub fn areas_visible<T: AreaLike>(
-    area1: &T,
-    area2: &T,
-    vis_checker: &CollisionChecker,
-    visibility_cache: Option<&HashMap<(u32, u32), bool>>,
-) -> bool {
-    if let Some(cache) = visibility_cache {
-        return cache[&(area1.area_id(), area2.area_id())];
-    }
-
+pub fn areas_visible<T: AreaLike>(area1: &T, area2: &T, vis_checker: &CollisionChecker) -> bool {
     let height_correction = PLAYER_EYE_LEVEL;
 
     let area1_centroid = area1.centroid();
@@ -512,6 +503,7 @@ pub fn get_visibility_cache(
     granularity: usize,
     nav: &Nav,
     vis_checker: &CollisionChecker,
+    safe_to_file: bool,
 ) -> HashMap<(u32, u32), bool> {
     let tqdm_config = Config::new().with_leave(true);
     let cache_path_str =
@@ -529,25 +521,18 @@ pub fn get_visibility_cache(
             .par_iter()
             .tqdm_config(tqdm_config.with_desc("Building visibility cache"))
             .map(|((area_id, area), (other_area_id, other_area))| {
-                let visible = areas_visible(*area, *other_area, vis_checker, None);
+                let visible = areas_visible(*area, *other_area, vis_checker);
                 ((**area_id, **other_area_id), visible)
             })
             .collect();
-        serialize_into(&mut file, &visibility_cache).unwrap();
+        if safe_to_file {
+            serialize_into(&mut file, &visibility_cache).unwrap();
+        }
         visibility_cache
     }
 }
 
-fn areas_walkable<T: AreaLike>(
-    area1: &T,
-    area2: &T,
-    walk_checker: &CollisionChecker,
-    walkable_cache: Option<&HashMap<(u32, u32), bool>>,
-) -> bool {
-    if let Some(cache) = walkable_cache {
-        return cache[&(area1.area_id(), area2.area_id())];
-    }
-
+fn areas_walkable<T: AreaLike>(area1: &T, area2: &T, walk_checker: &CollisionChecker) -> bool {
     let height = if area1.requires_crouch() || area2.requires_crouch() {
         PLAYER_CROUCH_HEIGHT
     } else {
@@ -603,7 +588,7 @@ pub fn get_walkability_cache(
         for ((area_id, area), (other_area_id, other_area)) in iproduct!(&nav.areas, &nav.areas)
             .tqdm_config(tqdm_config.with_desc("Building walkability cache"))
         {
-            let visible = areas_walkable(area, other_area, walk_checker, None);
+            let visible = areas_walkable(area, other_area, walk_checker);
             walkability_cache.insert((*area_id, *other_area_id), visible);
         }
         serde_json::to_writer(&mut file, &walkability_cache).unwrap();
@@ -955,7 +940,7 @@ fn add_connections_by_reachability(
                 if (!area.ladders_above.is_disjoint(&other_area.ladders_below))
                     || (!area.ladders_below.is_disjoint(&other_area.ladders_above))
                     || (area.centroid().can_jump_to(&other_area.centroid())
-                        && areas_walkable(area, other_area, walk_checker, None))
+                        && areas_walkable(area, other_area, walk_checker))
                 {
                     conns.insert(other_area.area_id);
                 }

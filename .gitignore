@@ -1,3 +1,7 @@
 /target
 *.code-workspace
 data/
+tris/
+spawns/
+maps/
+nav/
