@@ -343,7 +343,7 @@ def plot_spread_from_input(map_name: str, granularity: str, style: MeetingStyle,
 
     image_names: list[str] = []
 
-    for idx, spread_point in enumerate(tqdm(spread_input[:30], desc="Plotting spreads")):
+    for idx, spread_point in enumerate(tqdm(spread_input, desc="Plotting spreads")):
         _plot_tiles(
             {area_id: nav.areas[area_id] for area_id in (marked_areas_ct | marked_areas_t)},
             map_name=map_name,
@@ -414,8 +414,9 @@ def plot_spread_from_input(map_name: str, granularity: str, style: MeetingStyle,
     fig.clear()
     plt.close(fig)
 
-    webpage_data_path = Path("webpage_data") / f"{map_name}.json"
-    webpage_data_path.mkdir(exist_ok=True, parents=True)
+    webpage_dir_path = Path("webpage_data")
+    webpage_dir_path.mkdir(exist_ok=True, parents=True)
+    webpage_data_path = webpage_dir_path / f"{map_name}.json"
     webpage_data_path.write_text(json.dumps({map_name: {"gif": str(gif_path), "images": image_names}}))
 
 
