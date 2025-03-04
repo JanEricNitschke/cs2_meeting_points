@@ -147,6 +147,7 @@ jobs:
       contents: write
     needs: get-map-files
     strategy:
+      fail-fast: false
       matrix:
         map-name: ${{ fromJSON(needs.get-map-files.outputs.mapNamesToUpdate) }}
     steps:
@@ -176,6 +177,8 @@ jobs:
           uv python install ${{ env.PYTHON_VERSION }}
       - name: Generate plots
         run: |
+          Get-ChildItem -Force
+          Get-ChildItem -Path "results" -Force
           uv run -q --no-project --with tqdm --with matplotlib --with numpy --with pillow scripts/plot_spread.py ${{ matrix.map-name }}
       - name: Upload map files
         uses: actions/upload-artifact@v4

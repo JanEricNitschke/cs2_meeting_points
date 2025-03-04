@@ -116,14 +116,13 @@ class Nav:
 
 
 @dataclass
-class SpawnDistance:
-    area: NavArea
-    distance: float
+class ReducedSpawnDistance:
+    area: int
     path: list[int] = field(default_factory=list)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Self:
-        return cls(area=NavArea.from_dict(data["area"]), distance=data["distance"], path=data["path"])
+        return cls(area=data["area"], path=data["path"])
 
 
 @dataclass
@@ -131,7 +130,7 @@ class SpreadResult:
     new_marked_areas_ct: set[int]
     new_marked_areas_t: set[int]
 
-    visibility_connections: list[tuple[SpawnDistance, SpawnDistance]]
+    visibility_connections: list[tuple[ReducedSpawnDistance, ReducedSpawnDistance]]
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Self:
@@ -139,14 +138,16 @@ class SpreadResult:
             new_marked_areas_ct=set(data["new_marked_areas_ct"]),
             new_marked_areas_t=set(data["new_marked_areas_t"]),
             visibility_connections=[
-                (SpawnDistance.from_dict(origin), SpawnDistance.from_dict(target))
+                (ReducedSpawnDistance.from_dict(origin), ReducedSpawnDistance.from_dict(target))
                 for origin, target in data["visibility_connections"]
             ],
         )
 
     @classmethod
     def list_from_json(cls, path: str | Path) -> list[Self]:
-        return [cls.from_dict(entry) for entry in json.loads(Path(path).read_text())]
+        with Path(path).open() as f:
+            data = json.load(f)
+        return [cls.from_dict(entry) for entry in data]
 
 
 class MapData(TypedDict):
@@ -292,20 +293,19 @@ def _plot_path(
 
 
 def _plot_visibility_connection(
-    area1: SpawnDistance,
-    area2: SpawnDistance,
+    area1: ReducedSpawnDistance,
+    area2: ReducedSpawnDistance,
     map_nav: Nav,
     map_name: str,
     axis: Axes,
     *,
     color: str = "red",
     lw: float = 1.0,
-    highlight_area1: bool = False,
 ) -> None:
-    if highlight_area1:
-        _plot_points([area1.area.centroid], map_name, axis, color="yellow")
-    _plot_tiles({0: area1.area, 1: area2.area}, map_name, axis, color=color)
-    _plot_connection(area1.area, area2.area, map_name, axis, with_arrows=False, color=color, lw=lw)
+    _plot_tiles({0: map_nav.areas[area1.area], 1: map_nav.areas[area2.area]}, map_name, axis, color=color)
+    _plot_connection(
+        map_nav.areas[area1.area], map_nav.areas[area2.area], map_name, axis, with_arrows=False, color=color, lw=lw
+    )
     _plot_path(
         [map_nav.areas[path_id] for path_id in area1.path], axis, map_name, color=color, linestyle="dashed", lw=lw
     )
@@ -382,7 +382,6 @@ def plot_spread_from_input(map_name: str, granularity: str, style: MeetingStyle,
                 per_image_axis,
                 color="red",
                 lw=1.0,
-                highlight_area1=style == "rough",
             )
 
         image_path = image_dir / f"spread_{map_name}_{granularity}_{idx}.png"
@@ -425,7 +424,7 @@ if __name__ == "__main__":
     parser.add_argument("map_name", type=str, help="Name of the map to process")
     args = parser.parse_args()
 
-    granularity = 200
+    granularity = "200"
     style = "fine"
 
     plot_spread_from_input(args.map_name, granularity, style, Nav.from_json(f"nav/{args.map_name}_{granularity}.json"))

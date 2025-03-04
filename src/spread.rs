@@ -34,6 +34,21 @@ pub struct SpawnDistance {
     path: Vec<u32>,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ReducedSpawnDistance {
+    area: u32,
+    path: Vec<u32>,
+}
+
+impl From<&SpawnDistance> for ReducedSpawnDistance {
+    fn from(spawn_distance: &SpawnDistance) -> Self {
+        Self {
+            area: spawn_distance.area.area_id,
+            path: spawn_distance.path.clone(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(non_snake_case)]
 pub struct SpawnDistances {
@@ -124,7 +139,7 @@ pub struct SpreadResult {
     new_marked_areas_ct: HashSet<u32>,
     new_marked_areas_t: HashSet<u32>,
 
-    visibility_connections: Vec<(SpawnDistance, SpawnDistance)>,
+    visibility_connections: Vec<(ReducedSpawnDistance, ReducedSpawnDistance)>,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -167,7 +182,7 @@ pub fn generate_spreads(
 
     let mut spotted_areas_ct: HashSet<u32> = HashSet::default();
     let mut spotted_areas_t: HashSet<u32> = HashSet::default();
-    let mut visibility_connections: Vec<(SpawnDistance, SpawnDistance)> = Vec::new();
+    let mut visibility_connections: Vec<(ReducedSpawnDistance, ReducedSpawnDistance)> = Vec::new();
 
     let mut last_plotted: f64 = 0.0;
 
@@ -244,7 +259,10 @@ pub fn generate_spreads(
             own_spotted_areas.insert(current_area.area.area_id);
             for spotted_by_area in &visible_areas {
                 opposing_spotted_areas.insert(spotted_by_area.area.area_id);
-                visibility_connections.push((current_area.clone(), (*spotted_by_area).clone()));
+                visibility_connections.push((
+                    Into::<ReducedSpawnDistance>::into(current_area),
+                    Into::<ReducedSpawnDistance>::into(*spotted_by_area),
+                ));
             }
         }
 
