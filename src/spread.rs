@@ -217,7 +217,7 @@ pub fn generate_spreads(
                     &mut spotted_areas_ct,
                     &mut previous_areas_t,
                 )
-            } else {
+            } else if t_index < spawn_distances_t.len() {
                 let current = &spawn_distances_t[t_index];
                 new_marked_areas_t.insert(current.area.area_id);
                 previous_areas_t.push(current);
@@ -229,6 +229,13 @@ pub fn generate_spreads(
                     &mut spotted_areas_t,
                     &mut previous_areas_ct,
                 )
+            } else {
+                result.push(SpreadResult {
+                    new_marked_areas_ct: mem::take(&mut new_marked_areas_ct),
+                    new_marked_areas_t: mem::take(&mut new_marked_areas_t),
+                    visibility_connections: mem::take(&mut visibility_connections),
+                });
+                break;
             };
 
         if current_area.distance == f64::MAX {

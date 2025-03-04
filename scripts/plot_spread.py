@@ -1,5 +1,5 @@
 import argparse
-import io
+import gc
 import itertools
 import json
 from dataclasses import dataclass, field
@@ -13,7 +13,6 @@ import numpy as np
 from matplotlib import patches
 from matplotlib.axes import Axes
 from matplotlib.collections import LineCollection, PatchCollection
-from PIL import Image
 from tqdm import tqdm
 
 MeetingStyle = Literal["fine", "rough"]
@@ -314,8 +313,9 @@ def _plot_visibility_connection(
     )
 
 
-def plot_spread_from_input(map_name: str, granularity: str, style: MeetingStyle, nav: Nav) -> None:
+def plot_spread_from_input(map_name: str, granularity: str, style: MeetingStyle) -> None:
     print("Loading spread input.", flush=True)
+    nav = Nav.from_json(f"nav/{args.map_name}_{granularity}.json")
     spread_input = SpreadResult.list_from_json(Path("results") / f"{map_name}_{style}_spreads_{granularity}.json")
     print("Finished loading spread input.", flush=True)
     marked_areas_ct: set[int] = set()
@@ -326,8 +326,6 @@ def plot_spread_from_input(map_name: str, granularity: str, style: MeetingStyle,
 
     gif_dir = Path("spread_gifs") / map_name
     gif_dir.mkdir(exist_ok=True, parents=True)
-
-    frames = []
 
     fig, axis = plot_map(map_name)
     fig.set_size_inches(19.2, 21.6)
@@ -392,27 +390,18 @@ def plot_spread_from_input(map_name: str, granularity: str, style: MeetingStyle,
             dpi=300,
         )
 
-        buf = io.BytesIO()
-        buf.seek(0)
-        fig.savefig(buf, format="png")  # , facecolor="black"
-        img = Image.open(buf)
-        frames.append(img)
-
         per_image_axis.cla()
         per_image_axis.axis("off")
 
-    print("Creating gif.", flush=True)
-    gif_path = gif_dir / "spread.gif"
-    frames[0].save(
-        gif_path,
-        save_all=True,
-        append_images=frames[1:],
-        duration=[400 if bool(entry.visibility_connections) else 200 for entry in spread_input],
-        disposal=2,
-    )
+        gc.collect()
 
     fig.clear()
     plt.close(fig)
+    del nav
+    del spread_input
+    gc.collect()
+
+    gif_path = gif_dir / "spread.gif"
 
     webpage_dir_path = Path("webpage_data")
     webpage_dir_path.mkdir(exist_ok=True, parents=True)
@@ -428,4 +417,4 @@ if __name__ == "__main__":
     granularity = "200"
     style = "fine"
 
-    plot_spread_from_input(args.map_name, granularity, style, Nav.from_json(f"nav/{args.map_name}_{granularity}.json"))
+    plot_spread_from_input(args.map_name, granularity, style)
