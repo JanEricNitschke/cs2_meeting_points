@@ -315,7 +315,7 @@ def _plot_visibility_connection(
 
 def plot_spread_from_input(map_name: str, granularity: str, style: MeetingStyle) -> None:
     print("Loading spread input.", flush=True)
-    nav = Nav.from_json(f"nav/{args.map_name}_{granularity}.json")
+    nav = Nav.from_json(f"results/{args.map_name}_{granularity}.json")
     spread_input = SpreadResult.list_from_json(Path("results") / f"{map_name}_{style}_spreads_{granularity}.json")
     print("Finished loading spread input.", flush=True)
     marked_areas_ct: set[int] = set()

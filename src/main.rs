@@ -169,7 +169,7 @@ fn main() {
             let map_areas = regularize_nav_areas(&old_nav.areas, granularity, map_name);
             let nav = Nav::new(0, 0, map_areas, true);
 
-            let json_path_str = format!("./nav/{map_name}_{granularity}.json");
+            let json_path_str = format!("./results/{map_name}_{granularity}.json");
             let json_path = Path::new(&json_path_str);
             nav.clone().save_to_json(json_path);
 
