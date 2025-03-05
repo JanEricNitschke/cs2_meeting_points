@@ -88,7 +88,7 @@ jobs:
         if: steps.check_time.outputs.requiresUpdate == 'true'
         run: |
           Get-ChildItem -Force
-          .\scripts\generate-maps.ps1 -inputPath "cs_go\game\csgo\pak01_dir.vpk"
+          .\scripts\generate-maps.ps1 -inputPath "cs_go\game\csgo"
 
       - name: Generate Nav
         if: steps.check_time.outputs.requiresUpdate == 'true'
