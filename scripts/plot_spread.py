@@ -446,7 +446,7 @@ def plot_spread_from_input(map_name: str, style: MeetingStyle) -> None:
         plt.savefig(
             image_path,
             bbox_inches="tight",
-            dpi=300,
+            dpi=200,
         )
 
         per_image_axis.cla()
