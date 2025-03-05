@@ -1,4 +1,4 @@
-name: generate-plots-template
+name: generate-plots
 on:
   workflow_call:
     inputs:
@@ -41,7 +41,7 @@ jobs:
           name: results-${{ inputs.map-name }}
           path: results/*.json
 
-  generate-plots:
+  generate-plot-output:
     runs-on: ubuntu-latest
     needs: generate-plot-input
     permissions:
@@ -61,6 +61,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: results-${{ inputs.map-name }}
+          path: results
       - name: Install uv
         uses: astral-sh/setup-uv@v5
       - name: Set up Python
@@ -74,7 +75,7 @@ jobs:
         id: setup-ffmpeg
       - name: Generate gifs
         run: |
-          ffmpeg -framerate 3 -i spread_images/${{ inputs.map-name }}/spread_${{ inputs.map-name }}_200_%d.png  -loop -1 -y spread_gifs/${{ inputs.map-name }}/spread.gif
+          ffmpeg -framerate 3 -i spread_images/${{ inputs.map-name }}/spread_${{ inputs.map-name }}_%d.png  -loop -1 -y spread_gifs/${{ inputs.map-name }}/spread.gif
       - name: Upload map files
         uses: actions/upload-artifact@v4
         with:

@@ -149,6 +149,13 @@ class SpreadResult:
         return [cls.from_dict(entry) for entry in data]
 
 
+class VerticalSection(TypedDict):
+    """Type for a specified vertical section of a map."""
+
+    altitude_min: float
+    altitude_max: float
+
+
 class MapData(TypedDict):
     """Type of the data for a map. `pos_x` is upper left world coordinate."""
 
@@ -157,10 +164,28 @@ class MapData(TypedDict):
     scale: float
     rotate: int | None
     zoom: float | None
+    vertical_sections: dict[str, VerticalSection]
     lower_level_max_units: float
 
 
 MAP_DATA: dict[str, MapData] = json.loads((Path(__file__).parent / "../maps/map-data.json").read_bytes())
+
+
+def find_level(z_value: float, vertical_sections: dict[str, VerticalSection]) -> tuple[int, str]:
+    """Finds the level name and index for a given Z value."""
+    if not vertical_sections:
+        return 0, "default"
+
+    sorted_keys = sorted(vertical_sections, key=lambda k: vertical_sections[k]["altitude_max"], reverse=True)
+
+    for index, key in enumerate(sorted_keys):
+        section = vertical_sections[key]
+        if section["altitude_min"] <= z_value <= section["altitude_max"]:
+            return index, key  # Return both the index and level name
+
+    # If no match is found, return the lowest (last) level
+    lowest_key = sorted_keys[-1]
+    return len(sorted_keys) - 1, lowest_key
 
 
 def game_to_pixel(map_name: str, position: Vector3) -> tuple[float, float, float]:
@@ -182,8 +207,10 @@ def game_to_pixel(map_name: str, position: Vector3) -> tuple[float, float, float
     y = start_y - position.y
     y /= scale
     z = position.z
-    if "z_cutoff" in current_map_data and z < current_map_data["z_cutoff"]:
-        y += 1024
+    map_vertical_sections = current_map_data.get("vertical_sections", {})
+    if map_vertical_sections:
+        level, _ = find_level(z, map_vertical_sections)
+        y += level * 1024
     return (x, y, z)
 
 
@@ -192,20 +219,27 @@ def plot_map(map_name: str) -> tuple[plt.Figure, Axes]:
 
     maps_dir = Path("maps")
     map_img_path = maps_dir / f"{map_name}.png"
-    lower_img_path = maps_dir / f"{map_name}_lower.png"
 
     # Load and display the map
-    map_bg = mpimg.imread(map_img_path)
+    vertical_sections = MAP_DATA[map_name]["vertical_sections"] if map_name in MAP_DATA else {}
+    if vertical_sections:
+        map_bgs = []
 
-    if map_name in MAP_DATA and "z_cutoff" in MAP_DATA[map_name]:
-        map_bg_lower = mpimg.imread(lower_img_path)
-        map_bg = np.concatenate([map_bg, map_bg_lower])
+        # Sorting by altitude_max in descending order
+        for section_name in sorted(vertical_sections, key=lambda k: vertical_sections[k]["altitude_max"], reverse=True):
+            section_img_path = (
+                maps_dir / f"{map_name}_{section_name}.png" if section_name != "default" else map_img_path
+            )
+            map_bgs.append(mpimg.imread(section_img_path))
+        map_bg = np.concatenate(map_bgs)
+    else:
+        map_bg = mpimg.imread(map_img_path)
 
     ax.imshow(map_bg, zorder=0, alpha=0.5)
     ax.axis("off")
     # fig.patch.set_facecolor("black")
     plt.tight_layout()
-    fig.set_size_inches(19.2, 21.6)
+    fig.set_size_inches(19.2, 10.8 * (max(len(vertical_sections), 1)))
     return fig, ax
 
 
@@ -262,17 +296,40 @@ def _plot_connection(
     color: str = "red",
     lw: float = 0.3,
 ) -> None:
-    x1, y1, _ = game_to_pixel(map_name, area1.centroid)
-    x2, y2, _ = game_to_pixel(map_name, area2.centroid)
-    axis.plot([x1, x2], [y1, y2], color=color, lw=lw)
+    area1_level = find_level(area1.centroid.z, MAP_DATA[map_name].get("vertical_sections", {}))[0]
+    area2_level = find_level(area2.centroid.z, MAP_DATA[map_name].get("vertical_sections", {}))[0]
 
-    if with_arrows:
-        axis.annotate(
-            "",
-            xy=(x2, y2),  # Arrow tip
-            xytext=(x1, y1),  # Arrow base
-            arrowprops={"arrowstyle": "->", "color": color, "lw": lw},
-        )
+    if area1_level == area2_level:
+        x1, y1, _ = game_to_pixel(map_name, area1.centroid)
+        x2, y2, _ = game_to_pixel(map_name, area2.centroid)
+        axis.plot([x1, x2], [y1, y2], color=color, lw=lw)
+
+        if with_arrows:
+            axis.annotate(
+                "",
+                xy=(x2, y2),  # Arrow tip
+                xytext=(x1, y1),  # Arrow base
+                arrowprops={"arrowstyle": "->", "color": color, "lw": lw},
+            )
+    # Do not from one level to the other across the plot.
+    # Instead draw one line on each level.
+    else:
+        area1_at_2_z = Vector3(area1.centroid.x, area1.centroid.y, area2.centroid.z)
+        area2_at_1_z = Vector3(area2.centroid.x, area2.centroid.y, area1.centroid.z)
+
+        x1, y1, _ = game_to_pixel(map_name, area1.centroid)
+        x2, y2, _ = game_to_pixel(map_name, area2_at_1_z)
+        axis.plot([x1, x2], [y1, y2], color=color, lw=lw)
+
+        x1, y1, _ = game_to_pixel(map_name, area1_at_2_z)
+        x2, y2, _ = game_to_pixel(map_name, area2.centroid)
+        axis.plot([x1, x2], [y1, y2], color=color, lw=lw)
+
+
+def same_map_level(area1: NavArea, area2: NavArea, map_name: str) -> bool:
+    area1_level = find_level(area1.centroid.z, MAP_DATA[map_name].get("vertical_sections", {}))[0]
+    area2_level = find_level(area2.centroid.z, MAP_DATA[map_name].get("vertical_sections", {}))[0]
+    return area1_level == area2_level
 
 
 def _plot_path(
@@ -286,6 +343,8 @@ def _plot_path(
     lines = [
         [game_to_pixel(map_name, first.centroid)[:2], game_to_pixel(map_name, second.centroid)[:2]]
         for first, second in itertools.pairwise(path)
+        # Skip connections that would go from one level to another
+        if same_map_level(first, second, map_name)
     ]
     line_collection = LineCollection(lines, colors=color, linewidths=lw, linestyle=linestyle)
     axis.add_collection(line_collection)
@@ -313,10 +372,10 @@ def _plot_visibility_connection(
     )
 
 
-def plot_spread_from_input(map_name: str, granularity: str, style: MeetingStyle) -> None:
+def plot_spread_from_input(map_name: str, style: MeetingStyle) -> None:
     print("Loading spread input.", flush=True)
-    nav = Nav.from_json(f"results/{args.map_name}_{granularity}.json")
-    spread_input = SpreadResult.list_from_json(Path("results") / f"{map_name}_{style}_spreads_{granularity}.json")
+    nav = Nav.from_json(f"results/{args.map_name}.json")
+    spread_input = SpreadResult.list_from_json(Path("results") / f"{map_name}_{style}_spreads.json")
     print("Finished loading spread input.", flush=True)
     marked_areas_ct: set[int] = set()
     marked_areas_t: set[int] = set()
@@ -382,7 +441,7 @@ def plot_spread_from_input(map_name: str, granularity: str, style: MeetingStyle)
                 lw=1.0,
             )
 
-        image_path = image_dir / f"spread_{map_name}_{granularity}_{idx}.png"
+        image_path = image_dir / f"spread_{map_name}_{idx}.png"
         image_names.append(str(image_path))
         plt.savefig(
             image_path,
@@ -414,7 +473,6 @@ if __name__ == "__main__":
     parser.add_argument("map_name", type=str, help="Name of the map to process")
     args = parser.parse_args()
 
-    granularity = "200"
     style = "fine"
 
-    plot_spread_from_input(args.map_name, granularity, style)
+    plot_spread_from_input(args.map_name, style)

@@ -177,7 +177,7 @@ fn main() {
             let map_areas = regularize_nav_areas(&old_nav.areas, granularity, map_name);
             let nav = Nav::new(0, 0, map_areas, true);
 
-            let json_path_str = format!("./results/{map_name}_{granularity}.json");
+            let json_path_str = format!("./results/{map_name}.json");
             let json_path = Path::new(&json_path_str);
             nav.clone().save_to_json(json_path);
 
@@ -196,8 +196,7 @@ fn main() {
                 SpreadStyle::Fine,
                 &visibility_cache,
             );
-            let fine_spreads_path_str =
-                format!("./results/{map_name}_fine_spreads_{granularity}.json");
+            let fine_spreads_path_str = format!("./results/{map_name}_fine_spreads.json");
             save_spreads_to_json(&fine_spreads, Path::new(&fine_spreads_path_str));
         }
     }
