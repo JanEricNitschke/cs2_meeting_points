@@ -82,6 +82,14 @@ jobs:
           name: webpage-data-${{ inputs.map-name }}
           path: |
             webpage_data/*.json
+
+      - name: Retrieve hash-artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: hash-artifacts
+          path: hashes
+
+
       - name: Commit regenerated files
         run: |
           git config --global user.name 'Jan-Eric Nitschke'
@@ -89,7 +97,7 @@ jobs:
           git lfs install
           git lfs track "spread_gifs/**/*.gif"
           git add .gitattributes
-          git add spread_images spread_gifs
+          git add spread_images spread_gifs hashes/${{ inputs.map-name }}.txt
           git commit -am "Updating map images for ${{ inputs.map-name }}"
           git pull --rebase origin main
           git push origin main
