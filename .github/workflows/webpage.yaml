@@ -134,14 +134,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: hash-artifacts
-          path: hashes/*.txt
+          path: main/hashes/*.txt
 
       - name: Upload last updated time
         if: steps.check_time.outputs.requiresUpdate == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: time-artifact
-          path: scripts/last_run_time.txt
+          path: main/scripts/last_run_time.txt
 
 
   generate-plots:
