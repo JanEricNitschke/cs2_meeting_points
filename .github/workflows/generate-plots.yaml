@@ -89,15 +89,18 @@ jobs:
           name: hash-artifacts
           path: hashes
 
+      - name: Upload gif
+        uses: actions/upload-artifact@v4
+        with:
+          name: gif-${{ inputs.map-name }}
+          path: |
+            spread_gifs/
 
       - name: Commit regenerated files
         run: |
           git config --global user.name 'Jan-Eric Nitschke'
           git config --global user.email 'JanEricNitschke@users.noreply.github.com'
-          git lfs install
-          git lfs track "spread_gifs/**/*.gif"
-          git add .gitattributes
-          git add spread_images spread_gifs hashes/${{ inputs.map-name }}.txt
+          git add spread_images hashes/${{ inputs.map-name }}.txt
           git commit -am "Updating map images for ${{ inputs.map-name }}"
           git pull --rebase origin main
           git push origin main
