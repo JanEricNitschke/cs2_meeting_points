@@ -86,11 +86,11 @@ jobs:
         run: |
           git config --global user.name 'Jan-Eric Nitschke'
           git config --global user.email 'JanEricNitschke@users.noreply.github.com'
-          git pull --rebase origin main
           git lfs install
           git lfs track "spread_gifs/**/*.gif"
           git add .gitattributes
           git add spread_images spread_gifs
-          git commit -am "Updating map images for ${{ inputs.map-name }}
+          git commit -am "Updating map images for ${{ inputs.map-name }}"
+          git pull --rebase origin main
           git push origin main
           git lfs push --all origin main
