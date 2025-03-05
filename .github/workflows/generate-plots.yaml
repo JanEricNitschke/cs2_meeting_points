@@ -1,0 +1,95 @@
+name: generate-plots-template
+on:
+  workflow_call:
+    inputs:
+      map-name:
+        type: string
+        required: true
+      python-version:
+        type: number
+        required: true
+
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+  contents: write
+
+jobs:
+  generate-plot-input:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout this repo
+        uses: actions/checkout@v4
+      - name: Set Swap Space
+        uses: pierotofy/set-swap-space@master
+        with:
+          swap-size-gb: 16
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+      - name: Build
+        run: cargo build --release
+      - name: Retrieve map artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: map-artifacts
+      - name: Generate plot input
+        run: |
+          ls -l --block-size=M .
+          cargo run --release -- nav-analysis ${{ inputs.map-name }} 2>&1
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: results-${{ inputs.map-name }}
+          path: results/*.json
+
+  generate-plots:
+    runs-on: ubuntu-latest
+    needs: generate-plot-input
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout this repo
+        uses: actions/checkout@v4
+      - name: Set Swap Space
+        uses: pierotofy/set-swap-space@master
+        with:
+          swap-size-gb: 16
+      - name: Retrieve map artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: map-artifacts
+      - name: Retrieve results
+        uses: actions/download-artifact@v4
+        with:
+          name: results-${{ inputs.map-name }}
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+      - name: Set up Python
+        run: uv python install ${{ inputs.python-version }}
+      - name: Generate plots
+        run: |
+          ls -l --block-size=M
+          ls -l --block-size=M results
+          uv run -q --no-project --with tqdm --with matplotlib --with numpy --with pillow scripts/plot_spread.py ${{ inputs.map-name }}
+      - uses: FedericoCarboni/setup-ffmpeg@v3.1
+        id: setup-ffmpeg
+      - name: Generate gifs
+        run: |
+          ffmpeg -framerate 3 -i spread_images/${{ inputs.map-name }}/spread_${{ inputs.map-name }}_200_%d.png  -loop -1 -y spread_gifs/${{ inputs.map-name }}/spread.gif
+      - name: Upload map files
+        uses: actions/upload-artifact@v4
+        with:
+          name: webpage-data-${{ inputs.map-name }}
+          path: |
+            webpage_data/*.json
+      - name: Commit regenerated files
+        run: |
+          git config --global user.name 'Jan-Eric Nitschke'
+          git config --global user.email 'JanEricNitschke@users.noreply.github.com'
+          git pull --rebase origin main
+          git lfs install
+          git lfs track "spread_gifs/**/*.gif"
+          git add .gitattributes
+          git add spread_images spread_gifs
+          git commit -am "Updating map images for ${{ inputs.map-name }}
+          git push origin main
+          git lfs push --all origin main

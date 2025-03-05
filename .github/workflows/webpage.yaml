@@ -139,94 +139,21 @@ jobs:
           git push
         working-directory: main
 
-  generate-plot-input:
-    runs-on: ubuntu-latest
+  generate-plots:
     needs: get-map-files
     strategy:
       fail-fast: false
       matrix:
         map-name: ${{ fromJSON(needs.get-map-files.outputs.mapNamesToUpdate) }}
-    steps:
-      - name: Checkout this repo
-        uses: actions/checkout@v4
-      - name: Set Swap Space
-        uses: pierotofy/set-swap-space@master
-        with:
-          swap-size-gb: 16
-      - name: Set up Rust
-        uses: actions-rust-lang/setup-rust-toolchain@v1
-      - name: Build
-        run: cargo build --release
-      - name: Retrieve map artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: map-artifacts
-      - name: Generate plot input
-        run: |
-          ls -l --block-size=M .
-          cargo run --release -- nav-analysis ${{ matrix.map-name }}
-      - name: Upload results
-        uses: actions/upload-artifact@v4
-        with:
-          name: results-${{ matrix.map-name }}
-          path: results/*.json
-
-  generate-plots:
-    runs-on: ubuntu-latest
-    needs: [get-map-files, generate-plot-input]
+    uses: ./.github/workflows/generate-plots.yaml
+    with:
+      map-name: ${{ matrix.map-name }}
+      python-version: 3.13
+    # If you might want to use a secret in the build or test job then you would need to pass secrets, inherit disables secret isolation
+    secrets: inherit
     permissions:
       contents: write
-    strategy:
-      fail-fast: false
-      matrix:
-        map-name: ${{ fromJSON(needs.get-map-files.outputs.mapNamesToUpdate) }}
-    steps:
-      - name: Checkout this repo
-        uses: actions/checkout@v4
-      - name: Set Swap Space
-        uses: pierotofy/set-swap-space@master
-        with:
-          swap-size-gb: 16
-      - name: Retrieve map artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: map-artifacts
-      - name: Retrieve results
-        uses: actions/download-artifact@v4
-        with:
-          name: results-${{ matrix.map-name }}
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-      - name: Set up Python
-        run: uv python install ${{ env.PYTHON_VERSION }}
-      - name: Generate plots
-        run: |
-          ls -l --block-size=M
-          ls -l --block-size=M results
-          uv run -q --no-project --with tqdm --with matplotlib --with numpy --with pillow scripts/plot_spread.py ${{ matrix.map-name }}
-      - uses: FedericoCarboni/setup-ffmpeg@v3.1
-        id: setup-ffmpeg
-      - name: Generate gifs
-        run: |
-          ffmpeg -framerate 3 -i spread_images/${{ matrix.map-name }}/spread_${{ matrix.map-name }}_200_%d.png  -loop -1 -y spread_gifs/${{ matrix.map-name }}/spread.gif
-      - name: Upload map files
-        uses: actions/upload-artifact@v4
-        with:
-          name: webpage-data-${{ matrix.map-name }}
-          path: |
-            webpage_data/*.json
-      - name: Commit regenerated files
-        run: |
-          git config --global user.name 'Jan-Eric Nitschke'
-          git config --global user.email 'JanEricNitschke@users.noreply.github.com'
-          git pull --rebase origin main
-          git lfs install
-          git lfs track "spread_gifs/**/*.gif"
-          git add .gitattributes
-          git add spread_images spread_gifs
-          git commit -am "Updating map images for ${{ matrix.map-name }}"
-          git push origin main
-          git lfs push --all origin main
+
 
   deploy:
     environment:

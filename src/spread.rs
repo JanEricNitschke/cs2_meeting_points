@@ -69,6 +69,7 @@ impl SpawnDistances {
 }
 
 pub fn get_distances_from_spawns(map_areas: &Nav, spawns: &Spawns) -> SpawnDistances {
+    println!("Getting distances from spawns.");
     let tqdm_config = Config::new().with_leave(true);
 
     let distances: Vec<(SpawnDistance, SpawnDistance)> = map_areas
@@ -170,6 +171,7 @@ pub fn generate_spreads(
 ) -> Vec<SpreadResult> {
     assert_sorted(spawn_distances_ct);
     assert_sorted(spawn_distances_t);
+    println!("Generating spreads");
 
     let mut ct_index = 0;
     let mut t_index = 0;

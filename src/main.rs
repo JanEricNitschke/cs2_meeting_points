@@ -162,7 +162,15 @@ fn main() {
             print!("{maps_to_update:?}");
         }
         Commands::NavAnalysis(args) => {
-            let (map_name, granularity) = (&args.map_name, args.granularity);
+            let map_name = &args.map_name;
+            let granularity =
+                if matches!(map_name.as_str(), "ar_shoots" | "ar_baggage" | "de_vertigo") {
+                    println!("Encountered high tile map: {map_name}, reducing granularity to 100");
+                    100
+                } else {
+                    args.granularity
+                };
+
             println!("At config: map_name: {map_name}, granularity: {granularity}");
 
             let old_nav = Nav::from_json(Path::new(&format!("./nav/{map_name}.json")));
