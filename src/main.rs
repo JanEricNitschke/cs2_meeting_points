@@ -163,13 +163,20 @@ fn main() {
         }
         Commands::NavAnalysis(args) => {
             let map_name = &args.map_name;
-            let granularity =
-                if matches!(map_name.as_str(), "ar_shoots" | "ar_baggage" | "de_vertigo") {
-                    println!("Encountered high tile map: {map_name}, reducing granularity to 100");
-                    100
-                } else {
-                    args.granularity
-                };
+            let complex_maps = [
+                "ar_shoots",
+                "ar_baggage",
+                "ar_pool_day",
+                "de_palais",
+                "de_vertigo",
+                "de_whistle",
+            ];
+            let granularity = if complex_maps.contains(&map_name.as_str()) {
+                println!("Encountered high tile map: {map_name}, reducing granularity to 100");
+                100
+            } else {
+                args.granularity
+            };
 
             println!("At config: map_name: {map_name}, granularity: {granularity}");
 
