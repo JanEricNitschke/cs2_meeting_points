@@ -24,6 +24,7 @@ use std::cmp::Ordering;
 use std::f64;
 use std::fmt;
 use std::fs::File;
+use std::hash::Hash;
 use std::path::Path;
 
 // --- DynamicAttributeFlags ---
@@ -515,7 +516,6 @@ pub fn get_visibility_cache(
         deserialize_from(file).unwrap()
     } else {
         println!("Building visibility cache from scratch.");
-        let mut file = create_file_with_parents(cache_path);
         let visibility_cache = iproduct!(&nav.areas, &nav.areas)
             .collect::<Vec<_>>()
             .par_iter()
@@ -526,6 +526,7 @@ pub fn get_visibility_cache(
             })
             .collect();
         if safe_to_file {
+            let mut file = create_file_with_parents(cache_path);
             serialize_into(&mut file, &visibility_cache).unwrap();
         }
         visibility_cache
@@ -979,4 +980,130 @@ fn add_intra_area_connections(
         }
     }
     println!(); // Newline after tqdm so bars dont override each other.
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, Hash, Copy)]
+pub struct GroupId(u32);
+
+/// Groups the nav areas into groups of a certain size.
+///
+/// Returns mappings:
+/// `GroupID` -> [`AreaID`]
+/// `AreaID` -> `GroupID`
+#[allow(clippy::cast_possible_truncation)]
+#[allow(clippy::cast_sign_loss)]
+pub fn group_nav_areas(
+    nav_areas: &[&NavArea],
+    group_size: usize,
+) -> (HashMap<GroupId, Vec<u32>>, HashMap<u32, GroupId>) {
+    println!("Grouping areas");
+    let mut block_map: HashMap<(usize, usize), Vec<&NavArea>> = HashMap::default();
+
+    let min_x = nav_areas
+        .iter()
+        .min_by(|a, b| a.centroid.x.partial_cmp(&b.centroid.x).unwrap())
+        .unwrap()
+        .centroid
+        .x;
+    let min_y = nav_areas
+        .iter()
+        .min_by(|a, b| a.centroid.y.partial_cmp(&b.centroid.y).unwrap())
+        .unwrap()
+        .centroid
+        .y;
+
+    let first_area = nav_areas.first().unwrap();
+    let tile_min_x = first_area
+        .corners
+        .iter()
+        .map(|c| c.x)
+        .fold(f64::INFINITY, f64::min);
+    let tile_min_y = first_area
+        .corners
+        .iter()
+        .map(|c| c.y)
+        .fold(f64::INFINITY, f64::min);
+    let tile_max_x = first_area
+        .corners
+        .iter()
+        .map(|c| c.x)
+        .fold(f64::NEG_INFINITY, f64::max);
+    let tile_max_y = first_area
+        .corners
+        .iter()
+        .map(|c| c.y)
+        .fold(f64::NEG_INFINITY, f64::max);
+
+    let delta_x = tile_max_x - tile_min_x;
+    let delta_y = tile_max_y - tile_min_y;
+
+    for area in nav_areas {
+        let cell_x = ((area.centroid.x - min_x) / delta_x).round() as usize;
+        let cell_y = ((area.centroid.y - min_y) / delta_y).round() as usize;
+        block_map
+            .entry((cell_x / group_size, cell_y / group_size))
+            .or_default()
+            .push(area);
+    }
+
+    let sorted_blocks: Vec<Vec<&NavArea>> = block_map
+        .into_iter()
+        .sorted_by_key(|(k, _v)| *k)
+        .map(|(_, v)| v)
+        .collect();
+
+    let mut group_to_areas: HashMap<GroupId, Vec<u32>> = HashMap::default();
+    let mut area_to_group: HashMap<u32, GroupId> = HashMap::default();
+    let mut next_group_id: u32 = 0;
+
+    for mut areas in sorted_blocks {
+        areas.sort_by_key(|a| {
+            let cell_x = ((a.centroid.x - min_x) / delta_x).round() as usize;
+            let cell_y = ((a.centroid.y - min_y) / delta_y).round() as usize;
+            (cell_x, cell_y, a.area_id)
+        });
+
+        let mut z_groups: Vec<Vec<&NavArea>> = Vec::new();
+        for area in areas {
+            let cell_coord = (
+                ((area.centroid.x - min_x) / delta_x).round() as usize,
+                ((area.centroid.y - min_y) / delta_y).round() as usize,
+            );
+            let mut found = false;
+
+            for group in &mut z_groups {
+                if group.iter().any(|a| {
+                    let ax = ((a.centroid.x - min_x) / delta_x).round() as usize;
+                    let ay = ((a.centroid.y - min_y) / delta_y).round() as usize;
+                    (ax, ay) == cell_coord
+                }) {
+                    continue;
+                }
+
+                if group
+                    .iter()
+                    .all(|a| (a.centroid.z - area.centroid.z).abs() <= JUMP_HEIGHT)
+                {
+                    group.push(area);
+                    found = true;
+                    break;
+                }
+            }
+
+            if !found {
+                z_groups.push(vec![area]);
+            }
+        }
+
+        for group in z_groups {
+            let group_id = next_group_id;
+            next_group_id += 1;
+            group_to_areas.insert(GroupId(group_id), group.iter().map(|a| a.area_id).collect());
+            for area in group {
+                area_to_group.insert(area.area_id, GroupId(group_id));
+            }
+        }
+    }
+
+    (group_to_areas, area_to_group)
 }

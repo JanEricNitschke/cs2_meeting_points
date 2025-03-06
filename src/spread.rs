@@ -1,4 +1,4 @@
-use crate::nav::{AreaIdent, AreaLike, Nav, NavArea, PathResult};
+use crate::nav::{AreaIdent, AreaLike, GroupId, Nav, NavArea, PathResult};
 use crate::position::Position;
 use crate::utils::create_file_with_parents;
 use core::f64;
@@ -166,6 +166,8 @@ fn assert_sorted(spawn_distances: &[SpawnDistance]) {
 pub fn generate_spreads(
     spawn_distances_ct: &[SpawnDistance],
     spawn_distances_t: &[SpawnDistance],
+    group_to_areas: &HashMap<GroupId, Vec<u32>>,
+    area_to_group: &HashMap<u32, GroupId>,
     style: SpreadStyle,
     visibility_cache: &HashMap<(u32, u32), bool>,
 ) -> Vec<SpreadResult> {
@@ -182,8 +184,8 @@ pub fn generate_spreads(
     let mut previous_areas_ct: Vec<&SpawnDistance> = Vec::with_capacity(spawn_distances_ct.len());
     let mut previous_areas_t: Vec<&SpawnDistance> = Vec::with_capacity(spawn_distances_t.len());
 
-    let mut spotted_areas_ct: HashSet<u32> = HashSet::default();
-    let mut spotted_areas_t: HashSet<u32> = HashSet::default();
+    let mut spotted_groups_ct: HashSet<GroupId> = HashSet::default();
+    let mut spotted_groups_t: HashSet<GroupId> = HashSet::default();
     let mut visibility_connections: Vec<(ReducedSpawnDistance, ReducedSpawnDistance)> = Vec::new();
 
     let mut last_plotted: f64 = 0.0;
@@ -203,7 +205,7 @@ pub fn generate_spreads(
 
     loop {
         p_bar.next();
-        let (current_area, opposing_spotted_areas, own_spotted_areas, opposing_previous_areas) =
+        let (current_area, opposing_spotted_groups, own_spotted_groups, opposing_previous_areas) =
             if ct_index < spawn_distances_ct.len()
                 && (t_index >= spawn_distances_t.len()
                     || spawn_distances_ct[ct_index].distance < spawn_distances_t[t_index].distance)
@@ -215,8 +217,8 @@ pub fn generate_spreads(
                 ct_index += 1;
                 (
                     current,
-                    &mut spotted_areas_t,
-                    &mut spotted_areas_ct,
+                    &mut spotted_groups_t,
+                    &mut spotted_groups_ct,
                     &mut previous_areas_t,
                 )
             } else if t_index < spawn_distances_t.len() {
@@ -227,8 +229,8 @@ pub fn generate_spreads(
                 t_index += 1;
                 (
                     current,
-                    &mut spotted_areas_ct,
-                    &mut spotted_areas_t,
+                    &mut spotted_groups_ct,
+                    &mut spotted_groups_t,
                     &mut previous_areas_ct,
                 )
             } else {
@@ -250,24 +252,26 @@ pub fn generate_spreads(
         }
 
         if current_area.path.len() >= 2
-            && own_spotted_areas.contains(&current_area.path[current_area.path.len() - 2])
+            && own_spotted_groups
+                .contains(&area_to_group[&current_area.path[current_area.path.len() - 2]])
         {
-            own_spotted_areas.insert(current_area.area.area_id);
+            own_spotted_groups.insert(area_to_group[&current_area.area.area_id]);
         }
 
         let visible_areas = newly_visible(
             current_area,
             opposing_previous_areas,
-            own_spotted_areas,
-            opposing_spotted_areas,
+            own_spotted_groups,
+            opposing_spotted_groups,
+            area_to_group,
             style,
             visibility_cache,
         );
 
         if !visible_areas.is_empty() {
-            own_spotted_areas.insert(current_area.area.area_id);
+            own_spotted_groups.insert(area_to_group[&current_area.area.area_id]);
             for spotted_by_area in &visible_areas {
-                opposing_spotted_areas.insert(spotted_by_area.area.area_id);
+                opposing_spotted_groups.insert(area_to_group[&spotted_by_area.area.area_id]);
                 visibility_connections.push((
                     Into::<ReducedSpawnDistance>::into(current_area),
                     Into::<ReducedSpawnDistance>::into(*spotted_by_area),
@@ -295,8 +299,9 @@ pub fn generate_spreads(
 fn newly_visible<'a>(
     current_area: &SpawnDistance,
     previous_opposing_areas: &'a [&'a SpawnDistance],
-    own_spotted_areas: &mut HashSet<u32>,
-    opposing_spotted_areas: &mut HashSet<u32>,
+    own_spotted_groups: &mut HashSet<GroupId>,
+    opposing_spotted_groups: &mut HashSet<GroupId>,
+    area_to_group: &HashMap<u32, GroupId>,
     style: SpreadStyle,
     visibility_cache: &HashMap<(u32, u32), bool>,
 ) -> Vec<&'a SpawnDistance> {
@@ -304,15 +309,17 @@ fn newly_visible<'a>(
         SpreadStyle::Fine => newly_visible_fine(
             current_area,
             previous_opposing_areas,
-            own_spotted_areas,
-            opposing_spotted_areas,
+            own_spotted_groups,
+            opposing_spotted_groups,
+            area_to_group,
             visibility_cache,
         ),
         SpreadStyle::Rough => newly_visible_rough(
             current_area,
             previous_opposing_areas,
-            own_spotted_areas,
-            opposing_spotted_areas,
+            own_spotted_groups,
+            opposing_spotted_groups,
+            area_to_group,
             visibility_cache,
         ),
     }
@@ -321,14 +328,15 @@ fn newly_visible<'a>(
 fn newly_visible_rough<'a>(
     current_area: &SpawnDistance,
     previous_opposing_areas: &'a [&'a SpawnDistance],
-    own_spotted_areas: &mut HashSet<u32>,
-    opposing_spotted_areas: &mut HashSet<u32>,
+    own_spotted_groups: &mut HashSet<GroupId>,
+    opposing_spotted_groups: &mut HashSet<GroupId>,
+    area_to_group: &HashMap<u32, GroupId>,
     visibility_cache: &HashMap<(u32, u32), bool>,
 ) -> Vec<&'a SpawnDistance> {
     if current_area
         .path
         .iter()
-        .any(|path_id| own_spotted_areas.contains(path_id))
+        .any(|path_id| own_spotted_groups.contains(&area_to_group[path_id]))
     {
         return Vec::new();
     }
@@ -337,8 +345,8 @@ fn newly_visible_rough<'a>(
     // Previous opposing areas should already be sorted by distance.
     for &opposing_area in previous_opposing_areas {
         if visibility_cache[&(current_area.area.area_id(), opposing_area.area.area_id())] {
-            own_spotted_areas.insert(current_area.area.area_id);
-            opposing_spotted_areas.insert(opposing_area.area.area_id);
+            own_spotted_groups.insert(area_to_group[&current_area.area.area_id]);
+            opposing_spotted_groups.insert(area_to_group[&opposing_area.area.area_id]);
             results.push(opposing_area);
         }
     }
@@ -348,15 +356,16 @@ fn newly_visible_rough<'a>(
 fn newly_visible_fine<'a>(
     current_area: &SpawnDistance,
     previous_opposing_areas: &'a [&'a SpawnDistance],
-    own_spotted_areas: &HashSet<u32>,
-    opposing_spotted_areas: &HashSet<u32>,
+    own_spotted_groups: &HashSet<GroupId>,
+    opposing_spotted_groups: &HashSet<GroupId>,
+    area_to_group: &HashMap<u32, GroupId>,
     visibility_cache: &HashMap<(u32, u32), bool>,
 ) -> Vec<&'a SpawnDistance> {
     previous_opposing_areas
         .par_iter()
         .filter(|opposing_area| {
-            !(own_spotted_areas.contains(&current_area.area.area_id)
-                && opposing_spotted_areas.contains(&opposing_area.area.area_id))
+            !(own_spotted_groups.contains(&area_to_group[&current_area.area.area_id])
+                && opposing_spotted_groups.contains(&area_to_group[&opposing_area.area.area_id]))
                 && visibility_cache[&(current_area.area.area_id(), opposing_area.area.area_id())]
         })
         .copied()

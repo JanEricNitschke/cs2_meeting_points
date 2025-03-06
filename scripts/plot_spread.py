@@ -1,7 +1,9 @@
 import argparse
+import collections
 import gc
 import itertools
 import json
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from functools import cached_property
 from pathlib import Path
@@ -16,6 +18,9 @@ from matplotlib.collections import LineCollection, PatchCollection
 from tqdm import tqdm
 
 MeetingStyle = Literal["fine", "rough"]
+
+# Jumpheigt in hammer units with crouch jumping
+JUMP_HEIGHT = 66.02
 
 
 class DynamicAttributeFlags(int):
@@ -47,13 +52,13 @@ class Vector3:
 
 @dataclass
 class NavArea:
-    area_id: int
-    hull_index: int
-    dynamic_attribute_flags: DynamicAttributeFlags
     corners: list[Vector3]
-    connections: list[int]
-    ladders_above: list[int]
-    ladders_below: list[int]
+    area_id: int = 0
+    hull_index: int = 0
+    dynamic_attribute_flags: DynamicAttributeFlags = DynamicAttributeFlags(0)  # noqa: RUF009
+    connections: list[int] = field(default_factory=list)
+    ladders_above: list[int] = field(default_factory=list)
+    ladders_below: list[int] = field(default_factory=list)
 
     @cached_property
     def centroid(self) -> Vector3:
@@ -250,6 +255,7 @@ def _plot_tiles(
     color: str = "yellow",
     facecolor: str = "None",
     zorder: int = 1,
+    linewidth: float = 1.0,
     *,
     show_z: bool = False,
 ) -> None:
@@ -265,7 +271,7 @@ def _plot_tiles(
                 )
                 for area in map_areas.values()
             ],
-            linewidth=1,
+            linewidth=linewidth,
             edgecolor=color,
             facecolor=facecolor,
             zorder=zorder,
@@ -372,6 +378,80 @@ def _plot_visibility_connection(
     )
 
 
+def group_nav_areas(nav_areas: Iterable[NavArea], group_size: int) -> list[list[Vector3]]:
+    """Groups nav areas into NxN clusters and returns their boundary positions."""
+
+    # Find min_x and min_y to normalize cell placement
+    min_x = min(area.centroid.x for area in nav_areas)
+    min_y = min(area.centroid.y for area in nav_areas)
+
+    # Compute tile size based on first area
+    first_area = next(iter(nav_areas))
+    tile_min_x = min(c.x for c in first_area.corners)
+    tile_min_y = min(c.y for c in first_area.corners)
+    tile_max_x = max(c.x for c in first_area.corners)
+    tile_max_y = max(c.y for c in first_area.corners)
+
+    delta_x = tile_max_x - tile_min_x
+    delta_y = tile_max_y - tile_min_y
+
+    # Group areas into grid cells
+    block_map: dict[tuple[int, int], list[NavArea]] = collections.defaultdict(list)
+    for area in nav_areas:
+        cell_x = round((area.centroid.x - min_x) / delta_x)
+        cell_y = round((area.centroid.y - min_y) / delta_y)
+        block_map[(cell_x // group_size, cell_y // group_size)].append(area)
+
+    # Process groups, ensuring areas in the same Z-range are kept together
+    grouped_boundaries: list[list[Vector3]] = []
+
+    for _, areas in sorted(block_map.items()):
+        z_groups: list[list[NavArea]] = []
+
+        for area in areas:
+            cell_coord = (
+                round((area.centroid.x - min_x) / delta_x),
+                round((area.centroid.y - min_y) / delta_y),
+            )
+            found = False
+
+            for group in z_groups:
+                if any(
+                    round((a.centroid.x - min_x) / delta_x) == cell_coord[0]
+                    and round((a.centroid.y - min_y) / delta_y) == cell_coord[1]
+                    for a in group
+                ):
+                    continue  # Skip if another area in this Z-group shares the same (x, y) cell
+
+                if all(abs(a.centroid.z - area.centroid.z) <= JUMP_HEIGHT for a in group):
+                    group.append(area)
+                    found = True
+                    break
+
+            if not found:
+                z_groups.append([area])
+
+        # Compute outer bounds for each Z-group
+        for group in z_groups:
+            min_x = min(c.x for area in group for c in area.corners)
+            min_y = min(c.y for area in group for c in area.corners)
+            max_x = max(c.x for area in group for c in area.corners)
+            max_y = max(c.y for area in group for c in area.corners)
+            avg_z = sum(c.z for area in group for c in area.corners) / len(group)
+
+            # Store the four boundary positions
+            grouped_boundaries.append(
+                [
+                    Vector3(min_x, min_y, avg_z),
+                    Vector3(min_x, max_y, avg_z),
+                    Vector3(max_x, max_y, avg_z),
+                    Vector3(max_x, min_y, avg_z),
+                ]
+            )
+
+    return grouped_boundaries
+
+
 def plot_spread_from_input(map_name: str, style: MeetingStyle) -> None:
     print("Loading spread input.", flush=True)
     nav = Nav.from_json(f"results/{args.map_name}.json")
@@ -395,12 +475,34 @@ def plot_spread_from_input(map_name: str, style: MeetingStyle) -> None:
         color="yellow",
     )
 
+    # complex_maps and n_grouping have to be kept in sync with the rust code.
+    complex_maps = [
+        "ar_shoots",
+        "ar_baggage",
+        "ar_pool_day",
+        "de_palais",
+        "de_vertigo",
+        "de_whistle",
+    ]
+    n_grouping = 5
+    granularity = 100 if map_name in complex_maps else 200
+
+    groupings = group_nav_areas(nav.areas.values(), round(n_grouping * granularity / 200))
+
     per_image_axis = fig.add_axes(axis.get_position(), sharex=axis, sharey=axis)
     per_image_axis.axis("off")
 
     image_names: list[str] = []
 
     for idx, spread_point in enumerate(tqdm(spread_input, desc="Plotting spreads")):
+        _plot_tiles(
+            {idx: NavArea(corners=corners) for idx, corners in enumerate(groupings)},
+            map_name=map_name,
+            axis=per_image_axis,
+            color="black",
+            zorder=2,
+            linewidth=0.2,
+        )
         _plot_tiles(
             {area_id: nav.areas[area_id] for area_id in (marked_areas_ct | marked_areas_t)},
             map_name=map_name,

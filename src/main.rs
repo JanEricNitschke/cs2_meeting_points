@@ -12,14 +12,12 @@ use tikv_jemallocator::Jemalloc;
 #[cfg(not(target_env = "msvc"))]
 #[global_allocator]
 static GLOBAL: Jemalloc = Jemalloc;
-
 use crate::collisions::{CollisionCheckerStyle, load_collision_checker};
-use crate::nav::{Nav, get_visibility_cache};
+use crate::nav::{Nav, get_visibility_cache, group_nav_areas, regularize_nav_areas};
 use crate::spread::{
     Spawns, SpreadStyle, generate_spreads, get_distances_from_spawns, save_spreads_to_json,
 };
 use clap::{Args, Parser, Subcommand};
-use nav::regularize_nav_areas;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use sha2::{Digest, Sha256};
 use std::{
@@ -154,6 +152,8 @@ struct NavAnalysisArgs {
 fn main() {
     let cli = Cli::parse();
 
+    let n_grouping = 5;
+
     match cli.command {
         Commands::ProcessMaps => {
             let valid_maps = collect_valid_maps();
@@ -197,9 +197,16 @@ fn main() {
             let visibility_cache =
                 get_visibility_cache(map_name, granularity, &nav, &vis_checker, false);
 
+            let (group_to_areas, area_to_group) = group_nav_areas(
+                &nav.areas.values().collect::<Vec<_>>(),
+                n_grouping * granularity / 200,
+            );
+
             let fine_spreads = generate_spreads(
                 &spawn_distances.CT,
                 &spawn_distances.T,
+                &group_to_areas,
+                &area_to_group,
                 SpreadStyle::Fine,
                 &visibility_cache,
             );
