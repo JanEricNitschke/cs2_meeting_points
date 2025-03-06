@@ -30,6 +30,7 @@ def update_index_html(index_file: pathlib.Path, json_data: GalleryData) -> None:
     with index_file.open("r", encoding="utf-8") as f:
         content = f.read()
 
+    # OPEN: Fix for already existing gallery data
     content = content.replace("__GALLERY_DATA__", json_string)
 
     with index_file.open("w", encoding="utf-8") as f:
