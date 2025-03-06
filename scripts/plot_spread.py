@@ -256,13 +256,7 @@ def _plot_tiles(
     facecolor: str = "None",
     zorder: int = 1,
     linewidth: float = 1.0,
-    *,
-    show_z: bool = False,
 ) -> None:
-    if show_z:
-        for area in map_areas.values():
-            x, y, _ = game_to_pixel(map_name, area.centroid)
-            axis.text(x, y, str(round(area.centroid.z)), fontsize=2, color="black", ha="center")
     axis.add_collection(
         PatchCollection(
             [
@@ -437,7 +431,7 @@ def group_nav_areas(nav_areas: Iterable[NavArea], group_size: int) -> list[list[
             min_y = min(c.y for area in group for c in area.corners)
             max_x = max(c.x for area in group for c in area.corners)
             max_y = max(c.y for area in group for c in area.corners)
-            avg_z = sum(c.z for area in group for c in area.corners) / len(group)
+            avg_z = sum(c.z for area in group for c in area.corners) / sum(1 for area in group for c in area.corners)
 
             # Store the four boundary positions
             grouped_boundaries.append(
@@ -484,7 +478,7 @@ def plot_spread_from_input(map_name: str, style: MeetingStyle) -> None:
         "de_vertigo",
         "de_whistle",
     ]
-    n_grouping = 5
+    n_grouping = 10
     granularity = 100 if map_name in complex_maps else 200
 
     groupings = group_nav_areas(nav.areas.values(), round(n_grouping * granularity / 200))

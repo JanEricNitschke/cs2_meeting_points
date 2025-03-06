@@ -152,7 +152,7 @@ struct NavAnalysisArgs {
 fn main() {
     let cli = Cli::parse();
 
-    let n_grouping = 5;
+    let n_grouping = 10;
 
     match cli.command {
         Commands::ProcessMaps => {
