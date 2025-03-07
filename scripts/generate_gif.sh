@@ -1,5 +1,12 @@
 #!/bin/bash
 
+# Script to generate a GIF from the spread images of a map
+# Try to use as many images as possible while keeping the GIF size below 100MB
+# This is needed because 100MB is the maximum limit for any file on github.
+# Approach is to do a binary search on the number of frames to include in the GIF
+# and just generate the gif and check its size.
+# The GIF is generated using ffmpeg, which is required to be installed on the system
+
 set -e  # Exit on error
 
 if [ $# -ne 1 ]; then

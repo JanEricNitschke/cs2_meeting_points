@@ -1,3 +1,4 @@
+/// Useful constants for the library.
 use crate::nav::DynamicAttributeFlags;
 
 // Sides

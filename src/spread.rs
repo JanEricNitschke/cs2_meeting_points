@@ -1,3 +1,4 @@
+/// Module for modelling the spread of players after the round starts and when they can see each other.
 use crate::nav::{AreaIdent, AreaLike, GroupId, Nav, NavArea, PathResult};
 use crate::position::Position;
 use crate::utils::create_file_with_parents;
@@ -13,6 +14,7 @@ use std::iter;
 use std::mem;
 use std::path::Path;
 
+/// Struct for the positions of CT and T spawn points.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[allow(non_snake_case)]
 pub struct Spawns {
@@ -27,13 +29,18 @@ impl Spawns {
     }
 }
 
+/// Struct for the distance of an area from a collection of spawn points.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpawnDistance {
+    /// Nav area for which this represents the distance.
     area: NavArea,
+    /// Distance to the closest spawn point in the considered collection.
     distance: f64,
+    /// Path to the closest spawn point in the considered collection.
     path: Vec<u32>,
 }
 
+/// Only the parts of the `SpawnDistance` struct that are needed for the spread plotting.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ReducedSpawnDistance {
     area: u32,
@@ -49,6 +56,7 @@ impl From<&SpawnDistance> for ReducedSpawnDistance {
     }
 }
 
+/// Struct for the distances of all areas from CT and T spawn points.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[allow(non_snake_case)]
 pub struct SpawnDistances {
@@ -68,6 +76,9 @@ impl SpawnDistances {
     }
 }
 
+/// For each area in `map_areas`, find the distances and paths to CT and T spawns.
+///
+/// The contents of each vector are sorted by distance.
 pub fn get_distances_from_spawns(map_areas: &Nav, spawns: &Spawns) -> SpawnDistances {
     println!("Getting distances from spawns.");
     let tqdm_config = Config::new().with_leave(true);
@@ -135,11 +146,16 @@ pub fn get_distances_from_spawns(map_areas: &Nav, spawns: &Spawns) -> SpawnDista
         T: t_distances,
     }
 }
+
+/// Result of one spread step.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SpreadResult {
+    /// New areas that are reachable by CTs.
     new_marked_areas_ct: HashSet<u32>,
+    /// New areas that are reachable by Ts.
     new_marked_areas_t: HashSet<u32>,
 
+    /// New connections between areas that are visible to each other.
     visibility_connections: Vec<(ReducedSpawnDistance, ReducedSpawnDistance)>,
 }
 
@@ -162,6 +178,30 @@ fn assert_sorted(spawn_distances: &[SpawnDistance]) {
     );
 }
 
+/// Generate spread steps from the distances of areas to CT and T spawns.
+///
+/// The slices of `spawn_distances_ct` and `spawn_distances_t` need to be pre-sorted by distance.
+/// Also requires a mapping of areas to close groups to ensure a reduced number of spread points.
+/// In the extreme case this can just be `AreaID` -> `AreaID` to indicate no grouping at all.
+/// Usually a 4x4 to 10x10 grid structure is sensible. See `group_nav_areas`.
+///
+/// Logic wise we iterate over the T and CT distances in parallel and always take the closest distance to the spawn points.
+/// We keep track of all of the processed (reachable) areas for both sides.
+///
+/// Then we try to check which reachable areas of the other side can be seen from the new area.
+/// We only consider that have not already been spotted. We determine this "spottednes" by whether it or its last path step
+/// are in a group that has been spotted. We only consider the parent and not the full path to not mark areas
+/// that have separated from that group before it was spotted.
+/// For example if you could have a look at the spawn of the other side after 2 seconds, then you would not have seen
+/// player that moved away from the spawn and behind walls within that time.
+///
+/// There is some significant difficulty here with getting this perfect because paths do not go from one area to the next
+/// but skip over them or take one every so slightly at an angle. This means that we do not mark areas as spotted that
+/// sensibly already have.
+///
+/// Meanwhile the grouping can cause areas to be declared spotted that were separated by small walls or other obstacles
+/// from the actually spotted one. Without any grouping we get >1000 spread points for each map which is excssive.
+/// With grouping 5x5 or 10x10 we get around 200-300 spread points which is much more manageable.
 #[allow(clippy::too_many_lines)]
 pub fn generate_spreads(
     spawn_distances_ct: &[SpawnDistance],
@@ -205,6 +245,7 @@ pub fn generate_spreads(
 
     loop {
         p_bar.next();
+        // Get the next T or CT area based on the distance from the spawns.
         let (current_area, opposing_spotted_groups, own_spotted_groups, opposing_previous_areas) =
             if ct_index < spawn_distances_ct.len()
                 && (t_index >= spawn_distances_t.len()
@@ -242,6 +283,7 @@ pub fn generate_spreads(
                 break;
             };
 
+        // Spot when only unreachable areas are left.
         if current_area.distance == f64::MAX {
             result.push(SpreadResult {
                 new_marked_areas_ct: mem::take(&mut new_marked_areas_ct),
@@ -251,6 +293,7 @@ pub fn generate_spreads(
             break;
         }
 
+        // Set spottednes based on the spottedness of the group of the last path element.
         if current_area.path.len() >= 2
             && own_spotted_groups
                 .contains(&area_to_group[&current_area.path[current_area.path.len() - 2]])
@@ -258,6 +301,7 @@ pub fn generate_spreads(
             own_spotted_groups.insert(area_to_group[&current_area.area.area_id]);
         }
 
+        // Get new areas that are visible from the current area.
         let visible_areas = newly_visible(
             current_area,
             opposing_previous_areas,
@@ -268,6 +312,7 @@ pub fn generate_spreads(
             visibility_cache,
         );
 
+        // If there are any newly visible areas that declare this one and the opposing one as spotted.
         if !visible_areas.is_empty() {
             own_spotted_groups.insert(area_to_group[&current_area.area.area_id]);
             for spotted_by_area in &visible_areas {
@@ -279,6 +324,7 @@ pub fn generate_spreads(
             }
         }
 
+        // Save a spread point either after a fixed distance or whenever a new area has been spotted.
         if visible_areas.is_empty() && current_area.distance <= last_plotted + 100.0 {
             continue;
         }
@@ -296,6 +342,7 @@ pub fn generate_spreads(
     result
 }
 
+/// Get the new areas that can be seen from `current_area` based on spread style.
 fn newly_visible<'a>(
     current_area: &SpawnDistance,
     previous_opposing_areas: &'a [&'a SpawnDistance],
@@ -325,6 +372,9 @@ fn newly_visible<'a>(
     }
 }
 
+/// Get the new areas that can be seen from `current_area`.
+///
+/// This is a rough version where we consider any area already spotted if ANY of the path elements are spotted.
 fn newly_visible_rough<'a>(
     current_area: &SpawnDistance,
     previous_opposing_areas: &'a [&'a SpawnDistance],
@@ -353,6 +403,11 @@ fn newly_visible_rough<'a>(
     results
 }
 
+/// Get the new areas that can be seen from `current_area`.
+///
+/// This is the fine version where we only skip areas that are marked as spotted explicitly.
+/// This has previously been set based on the spottedness of the group of the last path element
+/// for the `current_area` itself.
 fn newly_visible_fine<'a>(
     current_area: &SpawnDistance,
     previous_opposing_areas: &'a [&'a SpawnDistance],

@@ -34,7 +34,11 @@ mod position;
 mod spread;
 mod utils;
 
-/// Expected file structure for a given `map_name`
+/// Expected files for a given `map_name`
+///
+/// We need spawn points for the map, an original navigation mesh,
+/// collision triangles with and without player clippings, and information
+/// about map dimensions.
 fn expected_files(map_name: &str) -> Vec<String> {
     vec![
         format!("maps/{}.png", map_name),

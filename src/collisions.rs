@@ -1,3 +1,6 @@
+/// Module for ray collision detection using a Bounding Volume Hierarchy tree.
+///
+/// Taken from: <https://github.com/pnxenopoulos/awpy/blob/main/awpy/visibility.py>
 use crate::position::Position;
 use crate::utils::create_file_with_parents;
 
@@ -7,7 +10,8 @@ use std::fs;
 use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
-// ---------- Triangle ----------
+
+/// A triangle in 3D space used for ray intersection checks.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Triangle {
     pub p1: Position,
@@ -25,8 +29,10 @@ impl Triangle {
     }
 }
 
+/// Read a .tri file containing triangles.
+///
+/// From <https://github.com/pnxenopoulos/awpy/blob/main/awpy/visibility.py#L757>
 #[allow(clippy::large_stack_arrays)]
-/// Read triangles from a .tri file.
 pub fn read_tri_file<P: AsRef<Path>>(tri_file: P) -> Vec<Triangle> {
     const BUFFER_SIZE: usize = 1000;
     // 9 f32 values per triangle, each f32 is 4 bytes.
@@ -80,7 +86,7 @@ pub struct Edge {
     pub face: i32,
 }
 
-// ---------- AABB ----------
+/// Axis-Aligned Bounding Box for efficient collision detection.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Aabb {
     pub min_point: Position,
@@ -159,7 +165,7 @@ impl std::fmt::Display for Aabb {
     }
 }
 
-// ---------- BVHNode ----------
+/// Node in the Bounding Volume Hierarchy tree.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct BVHNode {
     pub aabb: Aabb,
@@ -168,7 +174,7 @@ pub struct BVHNode {
     pub right: Option<Box<BVHNode>>,
 }
 
-// ---------- CollisionChecker ----------
+/// Collision checker using a Bounding Volume Hierarchy tree.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CollisionChecker {
     pub n_triangles: usize,

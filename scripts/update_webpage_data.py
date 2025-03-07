@@ -1,3 +1,5 @@
+"""Script to merge JSON files and update index.html with the merged data."""
+
 import json
 import pathlib
 from typing import TypedDict

@@ -1,3 +1,6 @@
+/// Module for navigation capabilities aimed at CS2.
+///
+/// Core taken from: <https://github.com/pnxenopoulos/awpy/blob/main/awpy/nav.py>
 use crate::collisions::{CollisionChecker, CollisionCheckerStyle, load_collision_checker};
 use crate::constants::{
     CROUCHING_ATTRIBUTE_FLAG, CROUCHING_SPEED, JUMP_HEIGHT, PLAYER_CROUCH_HEIGHT, PLAYER_EYE_LEVEL,
@@ -49,18 +52,30 @@ pub trait AreaLike {
     fn area_id(&self) -> u32;
 }
 
+/// A navigation area in the map.
 #[derive(Debug, Clone, Serialize)]
 pub struct NavArea {
+    /// Unique ID of the area.
+    ///
+    /// Only unique for a given mesh
     pub area_id: u32,
     pub hull_index: u32,
     pub dynamic_attribute_flags: DynamicAttributeFlags,
+    /// Corners of the polygon making up the area.
     pub corners: Vec<Position>,
+    /// IDs of areas this one is connected to.
+    ///
+    /// Connections are not necessarily symmetric.
     pub connections: Vec<u32>,
+    /// IDs of ladders above this area.
     pub ladders_above: Vec<u32>,
+    /// IDs of ladders below this area.
     pub ladders_below: Vec<u32>,
+    /// Precomputed centroid of the area.
     centroid: Position,
 }
 
+/// Equality is purely done through the `area_id`.
 impl PartialEq for NavArea {
     fn eq(&self, other: &Self) -> bool {
         self.area_id == other.area_id
@@ -136,7 +151,9 @@ impl NavArea {
     }
 }
 
-// Custom deserialization for NavArea
+/// Custom deserialization for `NavArea`
+///
+/// Can handle a lack of the centroid and calculates it on `NavArea` creation.
 impl<'de> Deserialize<'de> for NavArea {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -250,12 +267,18 @@ impl From<NewNavArea> for NavArea {
     }
 }
 
+/// Result of a pathfinding operation.
+///
+/// Contains the path as a list of `NavArea` objects and the total distance.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PathResult {
     pub path: Vec<NavArea>,
     pub distance: f64,
 }
 
+/// Enum for path finding input.
+///
+/// Can either be the ID of an area or a position.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub enum AreaIdent {
     Id(u32),
@@ -290,7 +313,7 @@ impl Nav {
     ) -> Self {
         let mut graph = DiGraphMap::new();
 
-        // Add nodes (with attributes added as node weights)
+        // Add nodes
         for (area_id, area) in &areas {
             graph.add_node(*area_id);
         }
@@ -336,6 +359,9 @@ impl Nav {
         }
     }
 
+    /// Find the area that contains the position and has the closest centroid by z.
+    ///
+    /// If no area contains the position, then `None` is returned.
     pub fn find_area(&self, position: &Position) -> Option<&NavArea> {
         self.areas
             .values()
@@ -347,6 +373,7 @@ impl Nav {
             })
     }
 
+    /// Find the area with the closest centroid to the position.
     pub fn find_closest_area_centroid(&self, position: &Position) -> &NavArea {
         self.areas
             .values()
@@ -365,6 +392,7 @@ impl Nav {
         a.distance_2d(b)
     }
 
+    /// Utility function to calculate the cost of a path(segment).
     fn path_cost(&self, path: &[u32]) -> f64 {
         path.iter()
             .tuple_windows()
@@ -372,8 +400,9 @@ impl Nav {
             .sum()
     }
 
-    /// Finds the path between two areas.
+    /// Finds the path between two areas or positions.
     pub fn find_path(&self, start: AreaIdent, end: AreaIdent) -> PathResult {
+        // Find the start areas for path finding.
         let start_area = match start {
             AreaIdent::Pos(pos) => {
                 self.find_area(&pos)
@@ -392,6 +421,8 @@ impl Nav {
 
             AreaIdent::Id(id) => id,
         };
+
+        // Perform A* path finding.
         let Some((distance, path_ids)) = astar(
             &self.graph,
             start_area,
@@ -406,6 +437,7 @@ impl Nav {
         };
 
         // Calculate the total distance.
+        // Idea is so take the distance from a starting position to the SECOND node in the path.
         let total_distance = if path_ids.len() <= 2 {
             match (start, end) {
                 (AreaIdent::Pos(start_pos), AreaIdent::Pos(end_pos)) => {
@@ -479,6 +511,11 @@ impl Nav {
     }
 }
 
+/// Checks if two areas are visible to each other.
+///
+/// Area positions are on the floor, so a height correction to eye level is applied.
+/// Note that this is conservative and can have false negatives for "actual" visibility.
+/// For example if one player can see the feet of another player, but not the head.
 pub fn areas_visible<T: AreaLike>(area1: &T, area2: &T, vis_checker: &CollisionChecker) -> bool {
     let height_correction = PLAYER_EYE_LEVEL;
 
@@ -499,6 +536,7 @@ pub fn areas_visible<T: AreaLike>(area1: &T, area2: &T, vis_checker: &CollisionC
     vis_checker.connection_unobstructed(used_centroid1, used_centroid2)
 }
 
+/// Get or build a cache of visibility between all area pairs in a nav mesh.
 pub fn get_visibility_cache(
     map_name: &str,
     granularity: usize,
@@ -533,6 +571,11 @@ pub fn get_visibility_cache(
     }
 }
 
+/// Checks if two areas are walkable to each other.
+///
+/// Requires a collision checker that includes player clippings.
+/// For walkability we need to account for player width and height.
+/// For height we also need to consider crouching.
 fn areas_walkable<T: AreaLike>(area1: &T, area2: &T, walk_checker: &CollisionChecker) -> bool {
     let height = if area1.requires_crouch() || area2.requires_crouch() {
         PLAYER_CROUCH_HEIGHT
@@ -597,6 +640,7 @@ pub fn get_walkability_cache(
     }
 }
 
+/// `NavArea` variant that includes the original area IDs that the new area is based on.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 struct NewNavArea {
     pub area_id: u32,
@@ -651,6 +695,7 @@ struct AdditionalNavAreaInfo {
     pub z_level: f64,
 }
 
+/// Generate a grid of new navigation areas based on the original areas.
 #[allow(clippy::cast_precision_loss)]
 fn create_new_nav_areas(
     nav_areas: &HashMap<u32, NavArea>,
@@ -660,20 +705,23 @@ fn create_new_nav_areas(
     area_extra_info: &HashMap<u32, AdditionalNavAreaInfo>,
     tqdm_config: Config,
 ) -> (Vec<NewNavArea>, HashMap<u32, HashSet<u32>>) {
+    // Get the boundaries of the original areas
     let min_x = *xs.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
     let max_x = *xs.iter().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
     let min_y = *ys.iter().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
     let max_y = *ys.iter().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
 
+    // Determine cell size of the new areas
     let cell_width = (max_x - min_x) / grid_granularity as f64;
     let cell_height = (max_y - min_y) / grid_granularity as f64;
 
     let mut new_cells: Vec<NewNavArea> = Vec::new();
 
-    // For each grid cell, test the center with all nav area polygons
+    // Build the actual areas for the grid.
     for (i, j) in iproduct!(0..grid_granularity, 0..grid_granularity)
         .tqdm_config(tqdm_config.with_desc("Creating grid cell"))
     {
+        // Information for the new cell
         let cell_min_x = min_x + j as f64 * cell_width;
         let cell_min_y = min_y + i as f64 * cell_height;
         let cell_max_x = cell_min_x + cell_width;
@@ -694,6 +742,8 @@ fn create_new_nav_areas(
 
         // TODO: Create tiles and their z coordinate by player clipping collisions
         // with heaven to floor rays?
+        // Get all the original areas that the centroid of the new cell is in in 2D
+        // Also get all cells that the new area intersects with, also in 2D.
         let mut primary_origs: HashSet<u32> = HashSet::default();
         let mut extra_orig_ids: HashSet<u32> = HashSet::default();
         for (area_id, info) in area_extra_info {
@@ -704,10 +754,12 @@ fn create_new_nav_areas(
             }
         }
 
+        // Skip cells that are outside the bounds of the original map (Holes or irregular shapes)
         if primary_origs.is_empty() && extra_orig_ids.is_empty() {
             continue;
         }
 
+        // If an area has no old area that its center is in, then assign the closest intersecting one.
         let primary_origs = if primary_origs.is_empty() {
             let min_id = extra_orig_ids.iter().min_by(|a, b| {
                 let distance_a = Euclidean::distance(
@@ -728,8 +780,12 @@ fn create_new_nav_areas(
             primary_origs
         };
 
+        // Generate one new nav area for each old one that the cell is based on.
         for primary in primary_origs {
             let mut cell_orig_ids = HashSet::from_iter([primary]);
+
+            // The new cell z is based on the inverse distance weighting of the old area corners.
+            // Just taking the avg z leads to issues with long tiles on slopes.
             let primary_z =
                 inverse_distance_weighting(&nav_areas[&primary].corners, (center_x, center_y));
 
@@ -767,6 +823,7 @@ fn create_new_nav_areas(
     (new_cells, old_to_new_children)
 }
 
+/// Build a mapping of old area IDs to all new areas that they are connected to.
 #[allow(clippy::cast_possible_truncation)]
 fn build_old_to_new_mapping(new_cells: &mut [NewNavArea]) -> HashMap<u32, HashSet<u32>> {
     let mut old_to_new_children: HashMap<u32, HashSet<u32>> = HashMap::default();
@@ -783,6 +840,12 @@ fn build_old_to_new_mapping(new_cells: &mut [NewNavArea]) -> HashMap<u32, HashSe
     old_to_new_children
 }
 
+/// Build a regularized navigation mesh with a fixed granularity from the original navigation areas.
+///
+/// First build a grid of cells and assign each cell to the closest original area.
+/// Also consider other original areas that intersect the cell.
+/// Then build connections between the new cells based on physical reachability in the game.
+/// Finally ensure that old connections are preserved.
 #[allow(clippy::cast_possible_truncation)]
 #[allow(clippy::cast_precision_loss)]
 pub fn regularize_nav_areas(
@@ -823,6 +886,7 @@ pub fn regularize_nav_areas(
         return HashMap::default();
     }
 
+    // Get the base grid of the new areas
     let (mut new_nav_areas, old_to_new_children) = create_new_nav_areas(
         nav_areas,
         grid_granularity,
@@ -854,6 +918,8 @@ pub fn regularize_nav_areas(
         .collect()
 }
 
+/// Ensure that a previous area A that was connected to another area B still has this connection
+/// via at least one new area A' that is based on A being connected to a new area B' that is based on B.
 fn ensure_inter_area_connections(
     new_nav_areas: &mut [NewNavArea],
     nav_areas: &HashMap<u32, NavArea>,
@@ -921,6 +987,9 @@ fn ensure_inter_area_connections(
     // Newline after tqdm so bars dont override each other.
 }
 
+/// Add connections between areas based on walkability (`areas_walkable`)
+/// and the ability to physically reach the area via a jump in the game.
+/// Also accounts for connections via ladders.
 fn add_connections_by_reachability(
     new_nav_areas: &mut Vec<NewNavArea>,
     walk_checker: &CollisionChecker,
@@ -956,14 +1025,16 @@ fn add_connections_by_reachability(
     // Newline after tqdm so bars dont override each other.
 }
 
+/// Add connections between new areas that comprise the same old areas.
+///
+/// Build connectivity based solely on the new cell's `orig_ids`.
+/// For a new cell A with orig set `A_orig`, connect to new cell B with orig set `B_orig` if:
+/// ∃ a in `A_orig` and b in `B_orig` with a == b or b in `nav_areas`[a].connections
 fn add_intra_area_connections(
     new_nav_areas: &mut [NewNavArea],
     old_to_new_children: &HashMap<u32, HashSet<u32>>,
     tqdm_config: Config,
 ) {
-    // Build connectivity based solely on the new cell's orig_ids.
-    // For a new cell A with orig set A_orig, connect to new cell B with orig set B_orig if:
-    // ∃ a in A_orig and b in B_orig with a == b or b in nav_areas[a].connections
     for new_area in &mut new_nav_areas
         .iter_mut()
         .tqdm_config(tqdm_config.with_desc("Connections from inheritance"))
@@ -987,6 +1058,12 @@ pub struct GroupId(u32);
 
 /// Groups the nav areas into groups of a certain size.
 ///
+/// Only works for meshes that are rectangular and have the same cell size.
+///
+/// Mainly used for building spreads and plotting them to avoid too many plots
+/// for close but not explicitly path connected areas. Reason for that is that
+/// paths are likely to skip a lot of areas because of jumpability connections.
+///
 /// Returns mappings:
 /// `GroupID` -> [`AreaID`]
 /// `AreaID` -> `GroupID`
@@ -999,6 +1076,8 @@ pub fn group_nav_areas(
     println!("Grouping areas");
     let mut block_map: HashMap<(usize, usize), Vec<&NavArea>> = HashMap::default();
 
+    // Get row and column number of each area in the grid.
+    // For that we first need to get the starting point of the grid (min_x, min_y)
     let min_x = nav_areas
         .iter()
         .min_by(|a, b| a.centroid.x.partial_cmp(&b.centroid.x).unwrap())
@@ -1012,6 +1091,8 @@ pub fn group_nav_areas(
         .centroid
         .y;
 
+    // And the size of each cell in the grid
+    // This requires that all cells are of the same size
     let first_area = nav_areas.first().unwrap();
     let tile_min_x = first_area
         .corners
@@ -1037,6 +1118,7 @@ pub fn group_nav_areas(
     let delta_x = tile_max_x - tile_min_x;
     let delta_y = tile_max_y - tile_min_y;
 
+    // Get the group that each area belongs to based on just x-y coordinates
     for area in nav_areas {
         let cell_x = ((area.centroid.x - min_x) / delta_x).round() as usize;
         let cell_y = ((area.centroid.y - min_y) / delta_y).round() as usize;
@@ -1046,6 +1128,7 @@ pub fn group_nav_areas(
             .push(area);
     }
 
+    // Sorting for deterministic results and nicer plotting.
     let sorted_blocks: Vec<Vec<&NavArea>> = block_map
         .into_iter()
         .sorted_by_key(|(k, _v)| *k)
@@ -1056,6 +1139,7 @@ pub fn group_nav_areas(
     let mut area_to_group: HashMap<u32, GroupId> = HashMap::default();
     let mut next_group_id: u32 = 0;
 
+    // Loop over each x-y grid group
     for mut areas in sorted_blocks {
         areas.sort_by_key(|a| {
             let cell_x = ((a.centroid.x - min_x) / delta_x).round() as usize;
@@ -1063,6 +1147,7 @@ pub fn group_nav_areas(
             (cell_x, cell_y, a.area_id)
         });
 
+        // We do not want to have multiple levels of z in any group.
         let mut z_groups: Vec<Vec<&NavArea>> = Vec::new();
         for area in areas {
             let cell_coord = (
@@ -1072,6 +1157,8 @@ pub fn group_nav_areas(
             let mut found = false;
 
             for group in &mut z_groups {
+                // The new area should not go into this group of there is another area
+                // with identical x-y coordinates.
                 if group.iter().any(|a| {
                     let ax = ((a.centroid.x - min_x) / delta_x).round() as usize;
                     let ay = ((a.centroid.y - min_y) / delta_y).round() as usize;
@@ -1080,6 +1167,7 @@ pub fn group_nav_areas(
                     continue;
                 }
 
+                // The area should be within jump height of all other areas in the group.
                 if group
                     .iter()
                     .all(|a| (a.centroid.z - area.centroid.z).abs() <= JUMP_HEIGHT)
@@ -1090,11 +1178,13 @@ pub fn group_nav_areas(
                 }
             }
 
+            // If it can not be added to any existing group and it created a new
             if !found {
                 z_groups.push(vec![area]);
             }
         }
 
+        // Build the group to area and area to group mappings
         for group in z_groups {
             let group_id = next_group_id;
             next_group_id += 1;

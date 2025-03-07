@@ -52,6 +52,7 @@ impl Position {
         Point::new(self.x, self.y)
     }
 
+    /// Check if a jump from self to other is possible
     pub fn can_jump_to(&self, other: &Self) -> bool {
         let mut h_distance = self.distance_2d(other);
         if h_distance <= 0.0 {
@@ -92,6 +93,9 @@ impl Sub for Position {
     }
 }
 
+/// Inverse Distance Weighting interpolation of the positions z-values at the target x-y position
+///
+/// <https://en.wikipedia.org/wiki/Inverse_distance_weighting>
 pub fn inverse_distance_weighting(points: &[Position], target: (f64, f64)) -> f64 {
     let p = 2.0; // Power parameter
     let mut weighted_sum = 0.0;

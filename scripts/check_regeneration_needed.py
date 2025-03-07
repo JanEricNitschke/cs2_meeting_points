@@ -1,3 +1,9 @@
+"""Check if the regeneration of the map is needed.
+
+The regeneration is needed if the last updated time of CS2 is later than the last run time of the script.
+Prints a `"true"` or `"false"` whether a regeneration is needed or not
+to be captured and used for the GitHub Actions."""
+
 import argparse
 import re
 import subprocess
@@ -26,6 +32,9 @@ def needs_regeneration(last_run_time: datetime, last_update_time: datetime) -> b
 
 
 def get_last_update_time() -> datetime:
+    """Get the last updated time of CS2 via steamcmd.
+
+    THe ID for CS2 is 730."""
     command = [
         "steamcmd",
         "+login",
@@ -41,9 +50,7 @@ def get_last_update_time() -> datetime:
     vdf_data = result[json_start : json_end_index + 1]
     vdf_data = re.sub(r'^(?!\s*[{}]|.*".*").*$', "", vdf_data, flags=re.MULTILINE)
     parsed_data = vdf.loads(vdf_data)
-    timeline_marker_updated = int(
-        parsed_data["730"]["common"]["timeline_marker_updated"]
-    )
+    timeline_marker_updated = int(parsed_data["730"]["common"]["timeline_marker_updated"])
     return datetime.fromtimestamp(timeline_marker_updated, timezone.utc)
 
 

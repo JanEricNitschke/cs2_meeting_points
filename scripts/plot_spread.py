@@ -1,3 +1,5 @@
+"""Script for reading and plotting the spread data produced by the Rust code."""
+
 import argparse
 import collections
 import gc
@@ -18,6 +20,9 @@ from matplotlib.collections import LineCollection, PatchCollection
 from tqdm import tqdm
 
 MeetingStyle = Literal["fine", "rough"]
+
+# -----------------------------------------------------
+# Duplication of some awpy code to read the rust data.
 
 # Jumpheigt in hammer units with crouch jumping
 JUMP_HEIGHT = 66.02
@@ -175,6 +180,9 @@ class MapData(TypedDict):
 
 MAP_DATA: dict[str, MapData] = json.loads((Path(__file__).parent / "../maps/map-data.json").read_bytes())
 
+# -----------------------------------------------------
+# Duplication of some awpy code to read the rust data.
+
 
 def find_level(z_value: float, vertical_sections: dict[str, VerticalSection]) -> tuple[int, str]:
     """Finds the level name and index for a given Z value."""
@@ -195,6 +203,8 @@ def find_level(z_value: float, vertical_sections: dict[str, VerticalSection]) ->
 
 def game_to_pixel(map_name: str, position: Vector3) -> tuple[float, float, float]:
     """Transforms a `(X, Y, Z)` CS2-coord to pixel coord.
+
+    Modified from awpy to better support multi level maps.
 
     Args:
         map_name (str): Map to transform coordinates.
@@ -220,6 +230,7 @@ def game_to_pixel(map_name: str, position: Vector3) -> tuple[float, float, float
 
 
 def plot_map(map_name: str) -> tuple[plt.Figure, Axes]:
+    """Modified from awpy to better support multi level maps."""
     fig, ax = plt.subplots()
 
     maps_dir = Path("maps")
@@ -311,7 +322,7 @@ def _plot_connection(
                 xytext=(x1, y1),  # Arrow base
                 arrowprops={"arrowstyle": "->", "color": color, "lw": lw},
             )
-    # Do not from one level to the other across the plot.
+    # Do not draw from one level to the other across the plot.
     # Instead draw one line on each level.
     else:
         area1_at_2_z = Vector3(area1.centroid.x, area1.centroid.y, area2.centroid.z)
@@ -373,7 +384,10 @@ def _plot_visibility_connection(
 
 
 def group_nav_areas(nav_areas: Iterable[NavArea], group_size: int) -> list[list[Vector3]]:
-    """Groups nav areas into NxN clusters and returns their boundary positions."""
+    """Groups nav areas into NxN clusters and returns their boundary positions.
+
+    Should use the same granularity as what is used in the rust code to
+    visualize (and debug) the spread algorithm with the grouping."""
 
     # Find min_x and min_y to normalize cell placement
     min_x = min(area.centroid.x for area in nav_areas)
@@ -447,6 +461,7 @@ def group_nav_areas(nav_areas: Iterable[NavArea], group_size: int) -> list[list[
 
 
 def plot_spread_from_input(map_name: str, style: MeetingStyle) -> None:
+    """Plot the spread data from the Rust code."""
     print("Loading spread input.", flush=True)
     nav = Nav.from_json(f"results/{args.map_name}.json")
     spread_input = SpreadResult.list_from_json(Path("results") / f"{map_name}_{style}_spreads.json")
@@ -460,6 +475,7 @@ def plot_spread_from_input(map_name: str, style: MeetingStyle) -> None:
     gif_dir = Path("spread_gifs") / map_name
     gif_dir.mkdir(exist_ok=True, parents=True)
 
+    # Create the base plot with the radar image and yellow outlines for all areas.
     fig, axis = plot_map(map_name)
     fig.set_size_inches(19.2, 21.6)
     _plot_tiles(
@@ -488,7 +504,15 @@ def plot_spread_from_input(map_name: str, style: MeetingStyle) -> None:
 
     image_names: list[str] = []
 
+    # Loop over each spread point and accumulate the reachable areas for each team.
+    # Plot the one that were reachable in a previous step in olive and the new ones in green.
+    # Plot the ones that were reachable for both teams in purple.
+    # Plot the visibility connections in red and highlight the newly visible areas in red.
+    # Also plot the paths to the newly visible areas in dashed red lines.
     for idx, spread_point in enumerate(tqdm(spread_input, desc="Plotting spreads")):
+        # Draw the groupings with thin black lines.
+        # This has to ge in here and on the `per_image_axis` because z-order is not respected
+        # across different axes.
         _plot_tiles(
             {idx: NavArea(corners=corners) for idx, corners in enumerate(groupings)},
             map_name=map_name,
@@ -545,6 +569,7 @@ def plot_spread_from_input(map_name: str, style: MeetingStyle) -> None:
             dpi=200,
         )
 
+        # Try to free memory as much as possible to avoid OOM errors on GitHub runners.
         per_image_axis.cla()
         per_image_axis.axis("off")
 
