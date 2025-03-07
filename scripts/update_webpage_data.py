@@ -2,6 +2,7 @@
 
 import json
 import pathlib
+import re
 from typing import TypedDict
 
 
@@ -32,8 +33,19 @@ def update_index_html(index_file: pathlib.Path, json_data: GalleryData) -> None:
     with index_file.open("r", encoding="utf-8") as f:
         content = f.read()
 
-    # OPEN: Fix for already existing gallery data
-    content = content.replace("__GALLERY_DATA__", json_string)
+    # Case 1: Placeholder exists, replace it directly
+    if "__GALLERY_DATA__" in content:
+        content = content.replace("__GALLERY_DATA__", json_string)
+    else:
+        # Case 2: Extract existing JSON and update it
+        match = re.search(r"const galleryData = (\{.*\});", content, re.DOTALL)
+        if match:
+            existing_json: GalleryData = json.loads(match.group(1))
+            existing_json.update(json_data)  # Merge new data into existing one
+            updated_json_string = json.dumps(existing_json, indent=2)
+            content = re.sub(
+                r"const galleryData = \{.*\};", f"const galleryData = {updated_json_string};", content, flags=re.DOTALL
+            )
 
     with index_file.open("w", encoding="utf-8") as f:
         f.write(content)
