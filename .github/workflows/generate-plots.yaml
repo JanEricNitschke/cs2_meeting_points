@@ -73,9 +73,12 @@ jobs:
           uv run -q --no-project --with tqdm --with matplotlib --with numpy --with pillow scripts/plot_spread.py ${{ inputs.map-name }}
       - uses: FedericoCarboni/setup-ffmpeg@v3.1
         id: setup-ffmpeg
-      - name: Generate gifs
-        run: |
-          ffmpeg -framerate 3 -i spread_images/${{ inputs.map-name }}/spread_${{ inputs.map-name }}_%d.png  -loop -1 -y spread_gifs/${{ inputs.map-name }}/spread.gif
+
+      - name: Make script executable
+        run: chmod +x generate_gif.sh
+
+      - name: Generate GIF
+        run: ./generate_gif.sh "${{ inputs.map-name }}"
       - name: Upload map files
         uses: actions/upload-artifact@v4
         with:
@@ -100,9 +103,24 @@ jobs:
         run: |
           git config --global user.name 'Jan-Eric Nitschke'
           git config --global user.email 'JanEricNitschke@users.noreply.github.com'
-          git add spread_images hashes/${{ inputs.map-name }}.txt
+          git add spread_images/ spread_gifs/ hashes/${{ inputs.map-name }}.txt
           git commit -m "Updating map images for ${{ inputs.map-name }}"
           git add .
+          # Stash any local changes to keep the working directory clean
           git stash
+
+          # Pull the latest changes with rebase
           git pull --rebase origin main
-          git push origin main
+
+          # Retry logic for pushing to the remote
+          for i in {1..5}; do
+            # Try pushing changes to the remote
+            git push origin main && break
+
+            # If the push fails, it may be due to new commits on the remote. So retry after a delay
+            echo "Push failed. Retrying..."
+            sleep 5
+
+            # After retry, attempt to pull again to sync with the latest remote changes
+            git pull --rebase origin main
+          done
