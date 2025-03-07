@@ -75,10 +75,10 @@ jobs:
         id: setup-ffmpeg
 
       - name: Make script executable
-        run: chmod +x generate_gif.sh
+        run: chmod +x scripts/generate_gif.sh
 
       - name: Generate GIF
-        run: ./generate_gif.sh "${{ inputs.map-name }}"
+        run: ./scripts/generate_gif.sh "${{ inputs.map-name }}"
       - name: Upload map files
         uses: actions/upload-artifact@v4
         with:
