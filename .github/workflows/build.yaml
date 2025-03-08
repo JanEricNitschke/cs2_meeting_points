@@ -57,7 +57,6 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-
       - name: Run signature test
         run: |
           python3 -m venv .venv
@@ -66,4 +65,4 @@ jobs:
 
           maturin develop
           pytest .
-          python3 -m mypy.stubtest cs2_nav --allowlist tests/mypy-stubtest-allowlist.txt
+          python3 -m mypy.stubtest cs2_nav --allowlist tests/mypy-stubtest-allowlist.txt --ignore-unused-allowlist

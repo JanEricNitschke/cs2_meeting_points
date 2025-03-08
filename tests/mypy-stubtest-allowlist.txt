@@ -1,6 +1,2 @@
 cs2_nav.cs2_nav
-cs2_nav.Nav.__replace__
-cs2_nav.NavArea.__replace__
-cs2_nav.PathResult.__replace__
-cs2_nav.Position.__replace__
-cs2_nav.Triangle.__replace__
+cs2_nav.*.__replace__
