@@ -8,3 +8,6 @@ nav/
 results/
 tri/
 webpage_data/
+__pycache__/
+.venv/
+venv/

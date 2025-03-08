@@ -5,6 +5,8 @@ use crate::position::Position;
 use crate::utils::create_file_with_parents;
 
 use bincode::{deserialize_from, serialize_into};
+use pyo3::exceptions::PyValueError;
+use pyo3::{PyResult, pyclass, pymethods};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::fs::File;
@@ -12,6 +14,7 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 
 /// A triangle in 3D space used for ray intersection checks.
+#[pyclass]
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Triangle {
     pub p1: Position,
@@ -19,7 +22,15 @@ pub struct Triangle {
     pub p3: Position,
 }
 
+#[pymethods]
 impl Triangle {
+    #[new]
+    #[must_use]
+    pub const fn new(p1: Position, p2: Position, p3: Position) -> Self {
+        Self { p1, p2, p3 }
+    }
+
+    #[must_use]
     pub fn get_centroid(&self) -> Position {
         Position::new(
             (self.p1.x + self.p2.x + self.p3.x) / 3.0,
@@ -32,6 +43,9 @@ impl Triangle {
 /// Read a .tri file containing triangles.
 ///
 /// From <https://github.com/pnxenopoulos/awpy/blob/main/awpy/visibility.py#L757>
+/// # Panics
+///
+/// Will panic if no file exists at the given path or if the file cannot be read.
 #[allow(clippy::large_stack_arrays)]
 pub fn read_tri_file<P: AsRef<Path>>(tri_file: P) -> Vec<Triangle> {
     const BUFFER_SIZE: usize = 1000;
@@ -106,6 +120,7 @@ fn check_axis(origin: f64, direction: f64, min_val: f64, max_val: f64, epsilon: 
 }
 
 impl Aabb {
+    #[must_use]
     pub const fn from_triangle(triangle: &Triangle) -> Self {
         let min_point = Position::new(
             triangle.p1.x.min(triangle.p2.x).min(triangle.p3.x),
@@ -123,6 +138,7 @@ impl Aabb {
         }
     }
 
+    #[must_use]
     pub fn intersects_ray(&self, ray_origin: &Position, ray_direction: &Position) -> bool {
         let epsilon = 1e-6;
 
@@ -175,6 +191,7 @@ pub struct BVHNode {
 }
 
 /// Collision checker using a Bounding Volume Hierarchy tree.
+#[pyclass(name = "VisibilityChecker")]
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CollisionChecker {
     pub n_triangles: usize,
@@ -183,6 +200,7 @@ pub struct CollisionChecker {
 
 impl CollisionChecker {
     /// Construct a new `CollisionChecker` from a file of triangles or an existing list.
+    #[must_use]
     pub fn new(tri_file: &Path) -> Self {
         let triangles = read_tri_file(tri_file);
 
@@ -191,6 +209,11 @@ impl CollisionChecker {
         Self { n_triangles, root }
     }
 
+    /// Build a Bounding Volume Hierarchy tree from a list of triangles.
+    ///
+    /// # Panics
+    ///
+    /// Will panic if a triangle centroid coordinate comparison fails.
     pub fn build_bvh(triangles: Vec<Triangle>) -> BVHNode {
         if triangles.len() == 1 {
             return BVHNode {
@@ -284,6 +307,7 @@ impl CollisionChecker {
 
     /// Check for ray-triangle intersection.
     /// Returns Some(distance) if intersecting; otherwise None.
+    #[must_use]
     pub fn ray_triangle_intersection(
         ray_origin: &Position,
         ray_direction: &Position,
@@ -349,8 +373,56 @@ impl CollisionChecker {
         left_hit || right_hit
     }
 
+    /// Save the loaded collision checker with the BVH to a file.
+    ///
+    /// # Panics
+    ///
+    /// Will panic if the file cannot be created or written to.
+    pub fn save_to_binary(&self, filename: &Path) {
+        let mut file = create_file_with_parents(filename);
+        serialize_into(&mut file, &self).unwrap();
+    }
+
+    /// Load a struct instance from a JSON file
+    /// # Panics
+    ///
+    /// Will panic if the file cannot be read or deserialized.
+    #[must_use]
+    pub fn from_binary(filename: &Path) -> Self {
+        let mut file = File::open(filename).unwrap();
+        deserialize_from(&mut file).unwrap()
+    }
+}
+
+#[pymethods]
+impl CollisionChecker {
+    /// Construct a new `CollisionChecker` from a file of triangles or an existing list.
+    ///
+    /// # Errors
+    ///
+    /// Will return an error if both or neither of `tri_file` and `triangles` are provided.
+    #[new]
+    #[pyo3(signature = (tri_file=None, triangles=None))]
+    pub fn py_new(tri_file: Option<PathBuf>, triangles: Option<Vec<Triangle>>) -> PyResult<Self> {
+        let triangles = match (tri_file, triangles) {
+            (Some(tri_file), None) => read_tri_file(tri_file),
+            (None, Some(triangles)) => triangles,
+            _ => {
+                return Err(PyValueError::new_err(
+                    "Exactly one of tri_file or triangles must be provided",
+                ));
+            }
+        };
+
+        let n_triangles = triangles.len();
+        let root = Self::build_bvh(triangles);
+        Ok(Self { n_triangles, root })
+    }
+
     /// Check if the line segment between start and end is visible.
     /// Returns true if no triangle obstructs the view.
+    #[must_use]
+    #[pyo3(name = "is_visible")]
     pub fn connection_unobstructed(&self, start: Position, end: Position) -> bool {
         let mut direction = end - start;
         let distance = direction.length();
@@ -360,17 +432,6 @@ impl CollisionChecker {
         direction = direction.normalize();
         // If any intersection is found along the ray, then the segment is not visible.
         !Self::traverse_bvh(&self.root, &start, &direction, distance)
-    }
-
-    pub fn save_to_binary(&self, filename: &Path) {
-        let mut file = create_file_with_parents(filename);
-        serialize_into(&mut file, &self).unwrap();
-    }
-
-    // Load a struct instance from a JSON file
-    pub fn from_binary(filename: &Path) -> Self {
-        let mut file = File::open(filename).unwrap();
-        deserialize_from(&mut file).unwrap()
     }
 }
 
@@ -387,6 +448,11 @@ pub enum CollisionCheckerStyle {
 }
 
 /// Load a visibility checker from a pickle file if available; otherwise build from a .tri file.
+/// # Panics
+///
+/// Will panic if the bath path for the tri or vis file cannot be constructed.
+/// Is "`CURRENT_FILE_PATH`/../../"
+#[must_use]
 pub fn load_collision_checker(map_name: &str, style: CollisionCheckerStyle) -> CollisionChecker {
     let postfix = match style {
         CollisionCheckerStyle::Visibility => "",

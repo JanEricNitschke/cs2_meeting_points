@@ -3,8 +3,8 @@
 /// Core taken from: <https://github.com/pnxenopoulos/awpy/blob/main/awpy/nav.py>
 use crate::collisions::{CollisionChecker, CollisionCheckerStyle, load_collision_checker};
 use crate::constants::{
-    CROUCHING_ATTRIBUTE_FLAG, CROUCHING_SPEED, JUMP_HEIGHT, PLAYER_CROUCH_HEIGHT, PLAYER_EYE_LEVEL,
-    PLAYER_HEIGHT, PLAYER_WIDTH, RUNNING_SPEED,
+    CROUCHING_ATTRIBUTE_FLAG, CROUCHING_SPEED, JUMP_HEIGHT, LADDER_SPEED, PLAYER_CROUCH_HEIGHT,
+    PLAYER_EYE_LEVEL, PLAYER_HEIGHT, PLAYER_WIDTH, RUNNING_SPEED,
 };
 use crate::position::{Position, inverse_distance_weighting};
 use crate::utils::create_file_with_parents;
@@ -17,6 +17,7 @@ use itertools::{Itertools, iproduct};
 use petgraph::algo::astar;
 use petgraph::graphmap::DiGraphMap;
 use petgraph::visit::EdgeRef;
+use pyo3::{FromPyObject, pyclass, pymethods};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
@@ -28,13 +29,17 @@ use std::f64;
 use std::fmt;
 use std::fs::File;
 use std::hash::Hash;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 // --- DynamicAttributeFlags ---
+#[pyclass(eq)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
 pub struct DynamicAttributeFlags(u32);
 
+#[pymethods]
 impl DynamicAttributeFlags {
+    #[must_use]
+    #[new]
     pub const fn new(value: u32) -> Self {
         Self(value)
     }
@@ -52,6 +57,7 @@ pub trait AreaLike {
     fn area_id(&self) -> u32;
 }
 
+#[pyclass(eq)]
 /// A navigation area in the map.
 #[derive(Debug, Clone, Serialize)]
 pub struct NavArea {
@@ -72,6 +78,7 @@ pub struct NavArea {
     /// IDs of ladders below this area.
     pub ladders_below: Vec<u32>,
     /// Precomputed centroid of the area.
+    #[pyo3(get)]
     centroid: Position,
 }
 
@@ -84,6 +91,7 @@ impl PartialEq for NavArea {
 
 #[allow(clippy::cast_precision_loss)]
 /// Computes the centroid of the polygon (averaging all corners).
+#[must_use]
 pub fn centroid(corners: &[Position]) -> Position {
     if corners.is_empty() {
         return Position::new(0.0, 0.0, 0.0);
@@ -96,8 +104,21 @@ pub fn centroid(corners: &[Position]) -> Position {
 }
 
 impl NavArea {
+    /// Returns a 2D Shapely Polygon using the (x,y) of the corners.
+    #[must_use]
+    pub fn to_polygon_2d(&self) -> Polygon {
+        let coords: Vec<(f64, f64)> = self.corners.iter().map(|c| (c.x, c.y)).collect();
+        Polygon::new(LineString::from(coords), vec![])
+    }
+}
+
+#[pymethods]
+impl NavArea {
+    #[must_use]
+    #[new]
     pub fn new(
         area_id: u32,
+        hull_index: u32,
         dynamic_attribute_flags: DynamicAttributeFlags,
         corners: Vec<Position>,
         connections: Vec<u32>,
@@ -107,7 +128,7 @@ impl NavArea {
         let centroid = centroid(&corners);
         Self {
             area_id,
-            hull_index: 0,
+            hull_index,
             dynamic_attribute_flags,
             corners,
             connections,
@@ -118,6 +139,8 @@ impl NavArea {
     }
 
     /// Compute the 2D polygon area (ignoring z) using the shoelace formula.
+    #[must_use]
+    #[getter]
     pub fn size(&self) -> f64 {
         if self.corners.len() < 3 {
             return 0.0;
@@ -130,22 +153,18 @@ impl NavArea {
 
         let mut area = 0.0;
         for i in 0..self.corners.len() {
-            area += x[i] * y[i + 1] - y[i] * x[i + 1];
+            area += x[i].mul_add(y[i + 1], -(y[i] * x[i + 1]));
         }
         area.abs() / 2.0
     }
 
-    /// Returns a 2D Shapely Polygon using the (x,y) of the corners.
-    pub fn to_polygon_2d(&self) -> Polygon {
-        let coords: Vec<(f64, f64)> = self.corners.iter().map(|c| (c.x, c.y)).collect();
-        Polygon::new(LineString::from(coords), vec![])
-    }
-
     /// Checks if a point is inside the area by converting to 2D.
+    #[must_use]
     pub fn contains(&self, point: &Position) -> bool {
         self.to_polygon_2d().contains(&point.to_point_2d())
     }
 
+    #[must_use]
     pub fn centroid_distance(&self, point: &Position) -> f64 {
         self.centroid().distance(point)
     }
@@ -270,18 +289,32 @@ impl From<NewNavArea> for NavArea {
 /// Result of a pathfinding operation.
 ///
 /// Contains the path as a list of `NavArea` objects and the total distance.
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[pyclass(eq)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct PathResult {
+    #[pyo3(get, set)]
     pub path: Vec<NavArea>,
+    #[pyo3(get, set)]
     pub distance: f64,
+}
+
+#[pymethods]
+impl PathResult {
+    #[must_use]
+    #[new]
+    pub const fn new(path: Vec<NavArea>, distance: f64) -> Self {
+        Self { path, distance }
+    }
 }
 
 /// Enum for path finding input.
 ///
 /// Can either be the ID of an area or a position.
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, FromPyObject)]
 pub enum AreaIdent {
+    #[pyo3(transparent, annotation = "int")]
     Id(u32),
+    #[pyo3(transparent, annotation = "Position")]
     Pos(Position),
 }
 
@@ -293,6 +326,7 @@ struct NavSerializationHelperStruct {
     pub areas: HashMap<u32, NavArea>,
 }
 
+#[pyclass]
 #[derive(Debug, Clone)]
 pub struct Nav {
     pub version: u32,
@@ -305,63 +339,14 @@ pub struct Nav {
 impl Nav {
     pub const MAGIC: u32 = 0xFEED_FACE;
 
-    pub fn new(
-        version: u32,
-        sub_version: u32,
-        areas: HashMap<u32, NavArea>,
-        is_analyzed: bool,
-    ) -> Self {
-        let mut graph = DiGraphMap::new();
-
-        // Add nodes
-        for (area_id, area) in &areas {
-            graph.add_node(*area_id);
-        }
-
-        // Add edges
-        for (area_id, area) in &areas {
-            for connected_area_id in &area.connections {
-                let connected_area = &areas[connected_area_id];
-                let dx = area.centroid().x - connected_area.centroid().x;
-                let dy = area.centroid().y - connected_area.centroid().y;
-                let dist_weight = dx.hypot(dy);
-
-                // TODO: For ladder connected areas add an additional distance
-                // based on height difference and LADDER_SPEED.
-                let area_relative_speed = if area.requires_crouch() {
-                    CROUCHING_SPEED
-                } else {
-                    RUNNING_SPEED
-                } / RUNNING_SPEED;
-
-                let connected_area_relative_speed = if connected_area.requires_crouch() {
-                    CROUCHING_SPEED
-                } else {
-                    RUNNING_SPEED
-                } / RUNNING_SPEED;
-
-                let area_time_adjusted_distance = dist_weight / area_relative_speed;
-                let connected_area_time_adjusted_distance =
-                    dist_weight / connected_area_relative_speed;
-                let time_adjusted =
-                    (area_time_adjusted_distance + connected_area_time_adjusted_distance) / 2.0;
-
-                graph.add_edge(*area_id, *connected_area_id, time_adjusted);
-            }
-        }
-
-        Self {
-            version,
-            sub_version,
-            areas,
-            is_analyzed,
-            graph,
-        }
-    }
-
     /// Find the area that contains the position and has the closest centroid by z.
     ///
     /// If no area contains the position, then `None` is returned.
+    ///
+    /// # Panics
+    ///
+    /// Will panic if the comparison of the position centroid z values against any area centroid z values returns `None`.
+    #[must_use]
     pub fn find_area(&self, position: &Position) -> Option<&NavArea> {
         self.areas
             .values()
@@ -374,6 +359,11 @@ impl Nav {
     }
 
     /// Find the area with the closest centroid to the position.
+    ///
+    /// # Panics
+    ///
+    /// Will panic if the comparison of the positions centroid distance against any area centroid distance returns `None`.
+    #[must_use]
     pub fn find_closest_area_centroid(&self, position: &Position) -> &NavArea {
         self.areas
             .values()
@@ -400,7 +390,117 @@ impl Nav {
             .sum()
     }
 
+    /// Save the navigation mesh to a JSON file.
+    ///
+    /// # Panics
+    ///
+    /// Will panic if the file cannot be created or written to.
+    pub fn save_to_json(&self, filename: &Path) {
+        let mut file = create_file_with_parents(filename);
+        let helper = NavSerializationHelperStruct {
+            version: self.version,
+            sub_version: self.sub_version,
+            is_analyzed: self.is_analyzed,
+            areas: self.areas.clone(),
+        };
+        serde_json::to_writer(&mut file, &helper).unwrap();
+    }
+
+    /// Load a struct instance from a JSON file
+    ///
+    /// # Panics
+    ///
+    /// Will panic if the file cannot be opened or read from.
+    #[must_use]
+    pub fn from_json(filename: &Path) -> Self {
+        let file = File::open(filename).unwrap();
+        let helper: NavSerializationHelperStruct = serde_json::from_reader(file).unwrap();
+        Self::new(
+            helper.version,
+            helper.sub_version,
+            helper.areas,
+            helper.is_analyzed,
+        )
+    }
+}
+
+fn has_overlap<T: PartialEq>(a: &[T], b: &[T]) -> bool {
+    a.iter().any(|x| b.contains(x))
+}
+
+#[pymethods]
+impl Nav {
+    #[must_use]
+    #[new]
+    pub fn new(
+        version: u32,
+        sub_version: u32,
+        areas: HashMap<u32, NavArea>,
+        is_analyzed: bool,
+    ) -> Self {
+        let mut graph = DiGraphMap::new();
+
+        // Add nodes
+        for area_id in areas.keys() {
+            graph.add_node(*area_id);
+        }
+
+        // Add edges
+        for (area_id, area) in &areas {
+            for connected_area_id in &area.connections {
+                let connected_area = &areas[connected_area_id];
+                let dx = area.centroid().x - connected_area.centroid().x;
+                let dy = area.centroid().y - connected_area.centroid().y;
+                let dist_weight = dx.hypot(dy);
+
+                let area_speed = if area.requires_crouch() {
+                    CROUCHING_SPEED
+                } else {
+                    RUNNING_SPEED
+                };
+
+                let connected_area_speed = if connected_area.requires_crouch() {
+                    CROUCHING_SPEED
+                } else {
+                    RUNNING_SPEED
+                };
+
+                let area_time_adjusted_distance = dist_weight * (RUNNING_SPEED / area_speed);
+                let connected_area_time_adjusted_distance =
+                    dist_weight * (RUNNING_SPEED / connected_area_speed);
+
+                // Only do this from bottom of the ladder to the top.
+                // For the downwards way we can just drop off and keep our horizontal speed.
+                let connected_by_ladder =
+                    has_overlap(&area.ladders_above, &connected_area.ladders_below);
+                let ladder_distance = if connected_by_ladder {
+                    let dz = connected_area.centroid().z - area.centroid().z - JUMP_HEIGHT;
+                    dz.max(0_f64)
+                } else {
+                    0.0
+                };
+                let time_adjusted_ladder_distance =
+                    ladder_distance * (RUNNING_SPEED / LADDER_SPEED);
+
+                let time_adjusted =
+                    ((area_time_adjusted_distance + connected_area_time_adjusted_distance) / 2.0)
+                        + time_adjusted_ladder_distance;
+
+                graph.add_edge(*area_id, *connected_area_id, time_adjusted);
+            }
+        }
+
+        Self {
+            version,
+            sub_version,
+            areas,
+            is_analyzed,
+            graph,
+        }
+    }
+
     /// Finds the path between two areas or positions.
+    #[must_use]
     pub fn find_path(&self, start: AreaIdent, end: AreaIdent) -> PathResult {
         // Find the start areas for path finding.
         let start_area = match start {
@@ -487,27 +587,36 @@ impl Nav {
         }
     }
 
-    pub fn save_to_json(self, filename: &Path) {
-        let mut file = create_file_with_parents(filename);
-        let helper = NavSerializationHelperStruct {
-            version: self.version,
-            sub_version: self.sub_version,
-            is_analyzed: self.is_analyzed,
-            areas: self.areas,
-        };
-        serde_json::to_writer(&mut file, &helper).unwrap();
+    /// Find the area that contains the position and has the closest centroid by z.
+    ///
+    /// If no area contains the position, then `None` is returned.
+    #[must_use]
+    #[pyo3(name = "find_area")]
+    pub fn find_area_py(&self, position: &Position) -> Option<NavArea> {
+        self.find_area(position).cloned()
     }
 
-    // Load a struct instance from a JSON file
-    pub fn from_json(filename: &Path) -> Self {
-        let file = File::open(filename).unwrap();
-        let helper: NavSerializationHelperStruct = serde_json::from_reader(file).unwrap();
-        Self::new(
-            helper.version,
-            helper.sub_version,
-            helper.areas,
-            helper.is_analyzed,
-        )
+    /// Find the area with the closest centroid to the position.
+    #[must_use]
+    #[pyo3(name = "find_closest_area_centroid")]
+    pub fn find_closest_area_centroid_py(&self, position: &Position) -> NavArea {
+        self.find_closest_area_centroid(position).clone()
+    }
+
+    /// Save the navigation mesh to a JSON file.
+    #[pyo3(name = "save_to_json")]
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn save_to_json_py(&self, filename: PathBuf) {
+        self.save_to_json(&filename);
+    }
+
+    /// Load a struct instance from a JSON file
+    #[must_use]
+    #[pyo3(name = "from_json")]
+    #[allow(clippy::needless_pass_by_value)]
+    #[staticmethod]
+    pub fn from_json_py(filename: PathBuf) -> Self {
+        Self::from_json(&filename)
     }
 }
 
@@ -516,7 +625,7 @@ impl Nav {
 /// Area positions are on the floor, so a height correction to eye level is applied.
 /// Note that this is conservative and can have false negatives for "actual" visibility.
 /// For example if one player can see the feet of another player, but not the head.
-pub fn areas_visible<T: AreaLike>(area1: &T, area2: &T, vis_checker: &CollisionChecker) -> bool {
+fn areas_visible<T: AreaLike>(area1: &T, area2: &T, vis_checker: &CollisionChecker) -> bool {
     let height_correction = PLAYER_EYE_LEVEL;
 
     let area1_centroid = area1.centroid();
@@ -537,6 +646,12 @@ pub fn areas_visible<T: AreaLike>(area1: &T, area2: &T, vis_checker: &CollisionC
 }
 
 /// Get or build a cache of visibility between all area pairs in a nav mesh.
+///
+/// # Panics
+///
+/// Will panic if opening or reading from an existing cache file fails.
+/// Or if creation and writing to a new cache file fails.
+#[must_use]
 pub fn get_visibility_cache(
     map_name: &str,
     granularity: usize,
@@ -613,7 +728,15 @@ fn areas_walkable<T: AreaLike>(area1: &T, area2: &T, walk_checker: &CollisionChe
     true
 }
 
-pub fn get_walkability_cache(
+/// Get or build a cache of walkability between all area pairs in a nav mesh.
+///
+/// # Panics
+///
+/// Will panic if opening or reading from an existing cache file fails.
+/// Or if creation and writing to a new cache file fails.
+#[allow(dead_code)]
+#[must_use]
+fn get_walkability_cache(
     map_name: &str,
     granularity: usize,
     nav: &Nav,
@@ -722,8 +845,8 @@ fn create_new_nav_areas(
         .tqdm_config(tqdm_config.with_desc("Creating grid cell"))
     {
         // Information for the new cell
-        let cell_min_x = min_x + j as f64 * cell_width;
-        let cell_min_y = min_y + i as f64 * cell_height;
+        let cell_min_x = (j as f64).mul_add(cell_width, min_x);
+        let cell_min_y = (i as f64).mul_add(cell_height, min_y);
         let cell_max_x = cell_min_x + cell_width;
         let cell_max_y = cell_min_y + cell_height;
         let center_x = (cell_min_x + cell_max_x) / 2.0;
@@ -848,6 +971,7 @@ fn build_old_to_new_mapping(new_cells: &mut [NewNavArea]) -> HashMap<u32, HashSe
 /// Finally ensure that old connections are preserved.
 #[allow(clippy::cast_possible_truncation)]
 #[allow(clippy::cast_precision_loss)]
+#[must_use]
 pub fn regularize_nav_areas(
     nav_areas: &HashMap<u32, NavArea>,
     grid_granularity: usize,
@@ -1030,6 +1154,7 @@ fn add_connections_by_reachability(
 /// Build connectivity based solely on the new cell's `orig_ids`.
 /// For a new cell A with orig set `A_orig`, connect to new cell B with orig set `B_orig` if:
 /// ∃ a in `A_orig` and b in `B_orig` with a == b or b in `nav_areas`[a].connections
+#[allow(dead_code)]
 fn add_intra_area_connections(
     new_nav_areas: &mut [NewNavArea],
     old_to_new_children: &HashMap<u32, HashSet<u32>>,
@@ -1067,12 +1192,13 @@ pub struct GroupId(u32);
 /// Returns mappings:
 /// `GroupID` -> [`AreaID`]
 /// `AreaID` -> `GroupID`
+///
+/// # Panics
+///
+/// Will panic if a centroid comparison returns `None`. Basically if there is a NaN somewhere.
 #[allow(clippy::cast_possible_truncation)]
 #[allow(clippy::cast_sign_loss)]
-pub fn group_nav_areas(
-    nav_areas: &[&NavArea],
-    group_size: usize,
-) -> (HashMap<GroupId, Vec<u32>>, HashMap<u32, GroupId>) {
+pub fn group_nav_areas(nav_areas: &[&NavArea], group_size: usize) -> HashMap<u32, GroupId> {
     println!("Grouping areas");
     let mut block_map: HashMap<(usize, usize), Vec<&NavArea>> = HashMap::default();
 
@@ -1135,7 +1261,7 @@ pub fn group_nav_areas(
         .map(|(_, v)| v)
         .collect();
 
-    let mut group_to_areas: HashMap<GroupId, Vec<u32>> = HashMap::default();
+    // let mut group_to_areas: HashMap<GroupId, Vec<u32>> = HashMap::default();
     let mut area_to_group: HashMap<u32, GroupId> = HashMap::default();
     let mut next_group_id: u32 = 0;
 
@@ -1188,12 +1314,12 @@ pub fn group_nav_areas(
         for group in z_groups {
             let group_id = next_group_id;
             next_group_id += 1;
-            group_to_areas.insert(GroupId(group_id), group.iter().map(|a| a.area_id).collect());
+            // group_to_areas.insert(GroupId(group_id), group.iter().map(|a| a.area_id).collect());
             for area in group {
                 area_to_group.insert(area.area_id, GroupId(group_id));
             }
         }
     }
 
-    (group_to_areas, area_to_group)
+    area_to_group
 }

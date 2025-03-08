@@ -1,23 +1,15 @@
-#![allow(unknown_lints)]
-#![allow(unused_variables)]
-#![allow(dead_code)]
-#![allow(clippy::suboptimal_flops)]
-#![allow(clippy::similar_names)]
-#![allow(clippy::many_single_char_names)]
-#![allow(clippy::multiple_crate_versions)]
-
 #[cfg(not(target_env = "msvc"))]
 use tikv_jemallocator::Jemalloc;
 
 #[cfg(not(target_env = "msvc"))]
 #[global_allocator]
 static GLOBAL: Jemalloc = Jemalloc;
-use crate::collisions::{CollisionCheckerStyle, load_collision_checker};
-use crate::nav::{Nav, get_visibility_cache, group_nav_areas, regularize_nav_areas};
-use crate::spread::{
+use clap::{Args, Parser, Subcommand};
+use cs2_nav::collisions::{CollisionCheckerStyle, load_collision_checker};
+use cs2_nav::nav::{Nav, get_visibility_cache, group_nav_areas, regularize_nav_areas};
+use cs2_nav::spread::{
     Spawns, SpreadStyle, generate_spreads, get_distances_from_spawns, save_spreads_to_json,
 };
-use clap::{Args, Parser, Subcommand};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use sha2::{Digest, Sha256};
 use std::{
@@ -26,13 +18,6 @@ use std::{
     io::{Read, Write},
     path::Path,
 };
-
-mod collisions;
-mod constants;
-mod nav;
-mod position;
-mod spread;
-mod utils;
 
 /// Expected files for a given `map_name`
 ///
@@ -190,7 +175,7 @@ fn main() {
 
             let json_path_str = format!("./results/{map_name}.json");
             let json_path = Path::new(&json_path_str);
-            nav.clone().save_to_json(json_path);
+            nav.save_to_json(json_path);
 
             let spawns_path = format!("./spawns/{map_name}.json");
             let spawns = Spawns::from_json(Path::new(&spawns_path));
@@ -201,7 +186,7 @@ fn main() {
             let visibility_cache =
                 get_visibility_cache(map_name, granularity, &nav, &vis_checker, false);
 
-            let (group_to_areas, area_to_group) = group_nav_areas(
+            let area_to_group = group_nav_areas(
                 &nav.areas.values().collect::<Vec<_>>(),
                 n_grouping * granularity / 200,
             );
@@ -209,7 +194,6 @@ fn main() {
             let fine_spreads = generate_spreads(
                 &spawn_distances.CT,
                 &spawn_distances.T,
-                &group_to_areas,
                 &area_to_group,
                 SpreadStyle::Fine,
                 &visibility_cache,

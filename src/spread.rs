@@ -23,6 +23,12 @@ pub struct Spawns {
 }
 
 impl Spawns {
+    /// Read the spawn points from a JSON file.
+    ///
+    /// # Panics
+    ///
+    /// Will panic if the file cannot be opened or the JSON cannot be deserialized.
+    #[must_use]
     pub fn from_json(filename: &Path) -> Self {
         let file = File::open(filename).unwrap();
         serde_json::from_reader(&file).unwrap()
@@ -65,11 +71,22 @@ pub struct SpawnDistances {
 }
 
 impl SpawnDistances {
+    /// Read the spawn distances from a JSON file.
+    ///
+    /// # Panics
+    ///
+    /// Will panic if a centroid comparison returns `None`. Basically if there is a NaN somewhere.
+    #[must_use]
     pub fn from_json(filename: &Path) -> Self {
         let file = File::open(filename).unwrap();
         serde_json::from_reader(&file).unwrap()
     }
 
+    /// Save the spawn distances to a JSON file.
+    ///
+    /// # Panics
+    ///
+    /// Will panic if the file cannot be created or the JSON cannot be serialized.
     pub fn save_to_json(self, filename: &Path) {
         let mut file = create_file_with_parents(filename);
         serde_json::to_writer(&mut file, &self).unwrap();
@@ -79,6 +96,11 @@ impl SpawnDistances {
 /// For each area in `map_areas`, find the distances and paths to CT and T spawns.
 ///
 /// The contents of each vector are sorted by distance.
+///
+/// # Panics
+///
+/// Will panic if any pathfinding yields a NaN distance.
+#[must_use]
 pub fn get_distances_from_spawns(map_areas: &Nav, spawns: &Spawns) -> SpawnDistances {
     println!("Getting distances from spawns.");
     let tqdm_config = Config::new().with_leave(true);
@@ -165,6 +187,11 @@ pub enum SpreadStyle {
     Rough,
 }
 
+/// Save the spread results to a JSON file.
+///
+/// # Panics
+///
+/// Will panic if the file cannot be created or the JSON cannot be serialized.
 pub fn save_spreads_to_json(spreads: &[SpreadResult], filename: &Path) {
     let mut file = create_file_with_parents(filename);
     serde_json::to_writer(&mut file, &spreads).unwrap();
@@ -203,10 +230,10 @@ fn assert_sorted(spawn_distances: &[SpawnDistance]) {
 /// from the actually spotted one. Without any grouping we get >1000 spread points for each map which is excssive.
 /// With grouping 5x5 or 10x10 we get around 200-300 spread points which is much more manageable.
 #[allow(clippy::too_many_lines)]
+#[must_use]
 pub fn generate_spreads(
     spawn_distances_ct: &[SpawnDistance],
     spawn_distances_t: &[SpawnDistance],
-    group_to_areas: &HashMap<GroupId, Vec<u32>>,
     area_to_group: &HashMap<u32, GroupId>,
     style: SpreadStyle,
     visibility_cache: &HashMap<(u32, u32), bool>,

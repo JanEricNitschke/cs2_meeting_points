@@ -1,5 +1,5 @@
 [package]
-name        = "cs2_meeting_points"
+name        = "cs2-nav"
 version     = "0.1.0"
 edition     = "2024"
 description = "Package to produce CS2 meeting point plots."
@@ -22,9 +22,19 @@ simple-tqdm = { version = "0.2.0", features = ["rayon"] }
 rustc-hash   = "2.1.1"
 sha2 = "0.10.8"
 clap = { version = "4.5.31", features = ["derive"] }
+pyo3 = { version = "0.23.5", features = ["extension-module"] }
 
 [target.'cfg(not(target_env = "msvc"))'.dependencies]
 tikv-jemallocator = "0.6"
+
+
+[lib]
+name = "cs2_nav"
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "cs2_meeting_points"
+path = "src/main.rs"
 
 [profile.release]
 lto = "fat"

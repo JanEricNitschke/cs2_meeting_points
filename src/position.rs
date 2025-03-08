@@ -1,79 +1,25 @@
 use crate::constants::{CROUCH_JUMP_HEIGHT_GAIN, GRAVITY, PLAYER_WIDTH, RUNNING_SPEED, jump_speed};
 
 use geo::geometry::Point;
+use pyo3::{Py, PyRef, PyRefMut, PyResult, pyclass, pyfunction, pymethods};
 use serde::{Deserialize, Serialize};
 use std::ops::{Add, Sub};
 
+#[pyclass]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Position {
+    #[pyo3(get, set)]
     pub x: f64,
+    #[pyo3(get, set)]
     pub y: f64,
+    #[pyo3(get, set)]
     pub z: f64,
 }
 
 impl Position {
-    pub const fn new(x: f64, y: f64, z: f64) -> Self {
-        Self { x, y, z }
-    }
-
-    pub fn distance(&self, other: &Self) -> f64 {
-        (*self - *other).length()
-    }
-
-    pub fn distance_2d(&self, other: &Self) -> f64 {
-        (self.x - other.x).hypot(self.y - other.y)
-    }
-
-    pub fn dot(&self, other: &Self) -> f64 {
-        self.x * other.x + self.y * other.y + self.z * other.z
-    }
-
-    pub fn cross(&self, other: &Self) -> Self {
-        Self::new(
-            self.y * other.z - self.z * other.y,
-            self.z * other.x - self.x * other.z,
-            self.x * other.y - self.y * other.x,
-        )
-    }
-
-    pub fn length(&self) -> f64 {
-        (self.x.powi(2) + self.y.powi(2) + self.z.powi(2)).sqrt()
-    }
-
-    pub fn normalize(&self) -> Self {
-        let len = self.length();
-        if len == 0.0 {
-            return Self::new(0.0, 0.0, 0.0);
-        }
-        Self::new(self.x / len, self.y / len, self.z / len)
-    }
-
+    #[must_use]
     pub fn to_point_2d(self) -> Point {
         Point::new(self.x, self.y)
-    }
-
-    /// Check if a jump from self to other is possible
-    pub fn can_jump_to(&self, other: &Self) -> bool {
-        let mut h_distance = self.distance_2d(other);
-        if h_distance <= 0.0 {
-            return true;
-        }
-        // Technically the modification factor to player width should be sqrt(2)
-        // But i have found that it can then make jumps that are just too far
-        // So i have reduced it.
-        let foothold_width_correction = PLAYER_WIDTH * 1.15;
-        h_distance = 0_f64.max(h_distance - (foothold_width_correction));
-
-        // Time to travel the horizontal distance between self and other
-        // with running speed
-        // Or if we are closer than the apex, then take the time to the apex
-        // Equivalent to setting z_at_dest = self.z + JUMP_HEIGHT + CROUCH_JUMP_HEIGHT_GAIN
-        let t = (h_distance / RUNNING_SPEED).max(jump_speed() / GRAVITY);
-
-        // In my jump, at which height am i when i reach the destination x-y distance.
-        let z_at_dest = self.z + jump_speed() * t - 0.5 * GRAVITY * t * t + CROUCH_JUMP_HEIGHT_GAIN;
-        // Am i at or above my target height?
-        z_at_dest >= other.z
     }
 }
 
@@ -93,9 +39,121 @@ impl Sub for Position {
     }
 }
 
+#[pymethods]
+impl Position {
+    #[must_use]
+    #[new]
+    pub const fn new(x: f64, y: f64, z: f64) -> Self {
+        Self { x, y, z }
+    }
+
+    #[must_use]
+    pub fn __sub__(&self, other: &Self) -> Self {
+        *self - *other
+    }
+
+    #[must_use]
+    pub fn __add__(&self, other: &Self) -> Self {
+        *self + *other
+    }
+
+    #[must_use]
+    pub fn distance(&self, other: &Self) -> f64 {
+        (*self - *other).length()
+    }
+
+    #[must_use]
+    pub fn distance_2d(&self, other: &Self) -> f64 {
+        (self.x - other.x).hypot(self.y - other.y)
+    }
+
+    #[must_use]
+    pub fn dot(&self, other: &Self) -> f64 {
+        self.z
+            .mul_add(other.z, self.x.mul_add(other.x, self.y * other.y))
+    }
+
+    #[must_use]
+    pub fn cross(&self, other: &Self) -> Self {
+        Self::new(
+            self.y.mul_add(other.z, -(self.z * other.y)),
+            self.z.mul_add(other.x, -(self.x * other.z)),
+            self.x.mul_add(other.y, -(self.y * other.x)),
+        )
+    }
+
+    #[must_use]
+    pub fn length(&self) -> f64 {
+        self.z
+            .mul_add(self.z, self.y.mul_add(self.y, self.x.powi(2)))
+            .sqrt()
+    }
+
+    #[must_use]
+    pub fn normalize(&self) -> Self {
+        let len = self.length();
+        if len == 0.0 {
+            return Self::new(0.0, 0.0, 0.0);
+        }
+        Self::new(self.x / len, self.y / len, self.z / len)
+    }
+
+    /// Check if a jump from self to other is possible
+    #[must_use]
+    pub fn can_jump_to(&self, other: &Self) -> bool {
+        let mut h_distance = self.distance_2d(other);
+        if h_distance <= 0.0 {
+            return true;
+        }
+        // Technically the modification factor to player width should be sqrt(2)
+        // But i have found that it can then make jumps that are just too far
+        // So i have reduced it.
+        let foothold_width_correction = PLAYER_WIDTH * 1.15;
+        h_distance = 0_f64.max(h_distance - (foothold_width_correction));
+
+        // Time to travel the horizontal distance between self and other
+        // with running speed
+        // Or if we are closer than the apex, then take the time to the apex
+        // Equivalent to setting z_at_dest = self.z + JUMP_HEIGHT + CROUCH_JUMP_HEIGHT_GAIN
+        let t = (h_distance / RUNNING_SPEED).max(jump_speed() / GRAVITY);
+
+        // In my jump, at which height am i when i reach the destination x-y distance.
+        let z_at_dest = (0.5 * GRAVITY * t).mul_add(-t, jump_speed().mul_add(t, self.z))
+            + CROUCH_JUMP_HEIGHT_GAIN;
+        // Am i at or above my target height?
+        z_at_dest >= other.z
+    }
+
+    #[allow(clippy::needless_pass_by_value)]
+    fn __iter__(slf: PyRef<'_, Self>) -> PyResult<Py<Iter>> {
+        let iter = Iter {
+            inner: vec![slf.x, slf.y, slf.z].into_iter(),
+        };
+        Py::new(slf.py(), iter)
+    }
+}
+
+#[pyclass]
+struct Iter {
+    inner: std::vec::IntoIter<f64>,
+}
+
+#[pymethods]
+impl Iter {
+    #[allow(clippy::self_named_constructors)]
+    const fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
+
+    fn __next__(mut slf: PyRefMut<'_, Self>) -> Option<f64> {
+        slf.inner.next()
+    }
+}
+
 /// Inverse Distance Weighting interpolation of the positions z-values at the target x-y position
 ///
 /// <https://en.wikipedia.org/wiki/Inverse_distance_weighting>
+#[must_use]
 pub fn inverse_distance_weighting(points: &[Position], target: (f64, f64)) -> f64 {
     let p = 2.0; // Power parameter
     let mut weighted_sum = 0.0;
@@ -118,4 +176,12 @@ pub fn inverse_distance_weighting(points: &[Position], target: (f64, f64)) -> f6
     }
 
     weighted_sum / weight_sum
+}
+
+#[pyfunction]
+#[allow(clippy::needless_pass_by_value)]
+#[pyo3(name = "inverse_distance_weighting")]
+#[must_use]
+pub fn idw_py(points: Vec<Position>, target: (f64, f64)) -> f64 {
+    inverse_distance_weighting(&points, target)
 }
