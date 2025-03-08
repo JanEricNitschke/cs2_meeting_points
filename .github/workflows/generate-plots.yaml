@@ -34,7 +34,7 @@ jobs:
       - name: Generate plot input
         run: |
           ls -l --block-size=M .
-          cargo run --release -- nav-analysis ${{ inputs.map-name }} 2>&1
+          RUSTFLAGS='-C target-cpu=native' cargo run --release -- nav-analysis ${{ inputs.map-name }} 2>&1
       - name: Upload results
         uses: actions/upload-artifact@v4
         with:
