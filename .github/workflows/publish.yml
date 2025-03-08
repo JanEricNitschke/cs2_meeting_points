@@ -35,6 +35,9 @@ jobs:
             target: ppc64le
     steps:
       - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
@@ -70,6 +73,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
@@ -99,6 +105,9 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           architecture: ${{ matrix.platform.target }}
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
@@ -126,6 +135,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
@@ -147,6 +159,9 @@ jobs:
             target: wasm32-unknown-emscripten
     steps:
       - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
       - run: pip install pyodide-build
       - name: Get Emscripten and Python version info
         shell: bash
@@ -179,6 +194,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
       - name: Build sdist
         uses: PyO3/maturin-action@v1
         with:
