@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import pytest
 from cs2_nav import (
     DynamicAttributeFlags,
     Nav,
@@ -8,7 +9,9 @@ from cs2_nav import (
     Position,
     Triangle,
     VisibilityChecker,
+    group_nav_areas,
     inverse_distance_weighting,
+    regularize_nav_areas,
 )
 
 
@@ -114,3 +117,67 @@ def test_visibility_checker():
     tri = Triangle(pos1, pos2, pos3)
     checker = VisibilityChecker(triangles=[tri])
     assert checker.is_visible(pos1, pos2)
+
+    with pytest.raises(ValueError, match="Exactly one of tri_file or triangles must be provided"):
+        VisibilityChecker(tri_file="test.json", triangles=[tri])
+
+    with pytest.raises(ValueError, match="Exactly one of tri_file or triangles must be provided"):
+        VisibilityChecker()
+
+    with pytest.raises(ValueError, match="No triangles provided"):
+        VisibilityChecker(triangles=[])
+
+
+def test_regularize_nav_areas() -> None:
+    area1 = NavArea(
+        1,
+        0,
+        DynamicAttributeFlags(1),
+        [Position(0, 0, 0), Position(1, 0, 0), Position(1, 1, 0), Position(0, 1, 0)],
+        [2],
+        [],
+        [],
+    )
+    area2 = NavArea(
+        2,
+        0,
+        DynamicAttributeFlags(1),
+        [Position(0, 2, 0), Position(1, 2, 0), Position(1, 3, 0), Position(0, 3, 0)],
+        [],
+        [],
+        [],
+    )
+    nav_areas = {1: area1, 2: area2}
+    vis_checker = VisibilityChecker(triangles=[Triangle(Position(1, 2, 3), Position(4, 5, 6), Position(7, 8, 9))])
+    regularized = regularize_nav_areas(nav_areas, 2, vis_checker)
+    assert isinstance(regularized, dict)
+    for key, value in regularized.items():
+        assert isinstance(key, int)
+        assert isinstance(value, NavArea)
+
+
+def test_group_nav_areas() -> None:
+    area1 = NavArea(
+        1,
+        0,
+        DynamicAttributeFlags(1),
+        [Position(0, 0, 0), Position(1, 0, 0), Position(1, 1, 0), Position(0, 1, 0)],
+        [2],
+        [],
+        [],
+    )
+    area2 = NavArea(
+        2,
+        0,
+        DynamicAttributeFlags(1),
+        [Position(0, 2, 0), Position(1, 2, 0), Position(1, 3, 0), Position(0, 3, 0)],
+        [],
+        [],
+        [],
+    )
+    nav_areas = [area1, area2]
+    grouped = group_nav_areas(nav_areas, 2)
+    assert isinstance(grouped, dict)
+    for key, value in grouped.items():
+        assert isinstance(key, int)
+        assert isinstance(value, int)

@@ -1,7 +1,7 @@
 /// Module for navigation capabilities aimed at CS2.
 ///
 /// Core taken from: <https://github.com/pnxenopoulos/awpy/blob/main/awpy/nav.py>
-use crate::collisions::{CollisionChecker, CollisionCheckerStyle, load_collision_checker};
+use crate::collisions::CollisionChecker;
 use crate::constants::{
     CROUCHING_ATTRIBUTE_FLAG, CROUCHING_SPEED, JUMP_HEIGHT, LADDER_SPEED, PLAYER_CROUCH_HEIGHT,
     PLAYER_EYE_LEVEL, PLAYER_HEIGHT, PLAYER_WIDTH, RUNNING_SPEED,
@@ -17,7 +17,7 @@ use itertools::{Itertools, iproduct};
 use petgraph::algo::astar;
 use petgraph::graphmap::DiGraphMap;
 use petgraph::visit::EdgeRef;
-use pyo3::{FromPyObject, pyclass, pymethods};
+use pyo3::{FromPyObject, IntoPyObject, pyclass, pyfunction, pymethods};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
@@ -975,16 +975,13 @@ fn build_old_to_new_mapping(new_cells: &mut [NewNavArea]) -> HashMap<u32, HashSe
 pub fn regularize_nav_areas(
     nav_areas: &HashMap<u32, NavArea>,
     grid_granularity: usize,
-    map_name: &str,
+    walk_checker: &CollisionChecker,
 ) -> HashMap<u32, NavArea> {
-    println!("Regularizing nav areas for {map_name}");
-
     let tqdm_config = Config::new().with_leave(true);
 
     let mut xs: Vec<f64> = Vec::new();
     let mut ys: Vec<f64> = Vec::new();
     let mut area_extra_info: HashMap<u32, AdditionalNavAreaInfo> = HashMap::default();
-    let walk_checker = load_collision_checker(map_name, CollisionCheckerStyle::Walkability);
 
     // Precompute the 2D polygon projection and an average-z for each nav area
     for (area_id, area) in nav_areas {
@@ -1026,7 +1023,7 @@ pub fn regularize_nav_areas(
     //     tqdm_config.clone(),
     // );
 
-    add_connections_by_reachability(&mut new_nav_areas, &walk_checker, tqdm_config.clone());
+    add_connections_by_reachability(&mut new_nav_areas, walk_checker, tqdm_config.clone());
 
     ensure_inter_area_connections(
         &mut new_nav_areas,
@@ -1178,7 +1175,7 @@ fn add_intra_area_connections(
     println!(); // Newline after tqdm so bars dont override each other.
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, Hash, Copy)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, Hash, Copy, IntoPyObject)]
 pub struct GroupId(u32);
 
 /// Groups the nav areas into groups of a certain size.
@@ -1322,4 +1319,25 @@ pub fn group_nav_areas(nav_areas: &[&NavArea], group_size: usize) -> HashMap<u32
     }
 
     area_to_group
+}
+
+#[pyfunction]
+#[allow(clippy::needless_pass_by_value)]
+#[pyo3(name = "regularize_nav_areas")]
+#[must_use]
+pub fn py_regularize_nav_areas(
+    nav_areas: HashMap<u32, NavArea>,
+    grid_granularity: usize,
+    walk_checker: &CollisionChecker,
+) -> HashMap<u32, NavArea> {
+    regularize_nav_areas(&nav_areas, grid_granularity, walk_checker)
+}
+
+#[pyfunction]
+#[allow(clippy::needless_pass_by_value)]
+#[pyo3(name = "group_nav_areas")]
+#[must_use]
+pub fn py_group_nav_areas(nav_areas: Vec<NavArea>, group_size: usize) -> HashMap<u32, GroupId> {
+    let nav_refs: Vec<&NavArea> = nav_areas.iter().collect();
+    group_nav_areas(&nav_refs, group_size)
 }

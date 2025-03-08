@@ -41,7 +41,6 @@ class NavArea:
     def size(self) -> float: ...
     @property
     def centroid(self) -> Position: ...
-
     def contains(self, point: Position) -> bool: ...
     def centroid_distance(self, point: Position) -> float: ...
 
@@ -66,6 +65,10 @@ class Nav:
     @staticmethod
     def from_json(filename: Path | str) -> Nav: ...
 
+def regularize_nav_areas(
+    nav_areas: dict[int, NavArea], grid_granularity: int, walk_checker: VisibilityChecker
+) -> dict[int, NavArea]: ...
+def group_nav_areas(nav_areas: list[NavArea], group_size: int) -> dict[int, int]: ...
 @final
 @dataclass
 class Triangle:
@@ -77,7 +80,7 @@ class Triangle:
 
 @final
 class VisibilityChecker:
-    def __init__(self, path: Path | str | None = None, triangles: list[Triangle] | None = None) -> None: ...
+    def __init__(self, tri_file: Path | str | None = None, triangles: list[Triangle] | None = None) -> None: ...
     def is_visible(self, start: Position, end: Position) -> bool: ...
 
 __all__ = [
@@ -88,5 +91,7 @@ __all__ = [
     "Position",
     "Triangle",
     "VisibilityChecker",
+    "group_nav_areas",
     "inverse_distance_weighting",
+    "regularize_nav_areas",
 ]

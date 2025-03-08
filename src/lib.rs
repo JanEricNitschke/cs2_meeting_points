@@ -8,7 +8,9 @@
 #![allow(clippy::redundant_pub_crate)]
 
 use crate::collisions::{CollisionChecker, Triangle};
-use crate::nav::{DynamicAttributeFlags, Nav, NavArea, PathResult};
+use crate::nav::{
+    DynamicAttributeFlags, Nav, NavArea, PathResult, py_group_nav_areas, py_regularize_nav_areas,
+};
 use crate::position::{Position, idw_py};
 use pyo3::{
     prelude::{Bound, PyModule, PyResult, pymodule},
@@ -31,6 +33,8 @@ fn cs2_nav(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<NavArea>()?;
     m.add_class::<Nav>()?;
     m.add_class::<PathResult>()?;
+    m.add_function(wrap_pyfunction!(py_group_nav_areas, m)?)?;
+    m.add_function(wrap_pyfunction!(py_regularize_nav_areas, m)?)?;
     m.add_class::<Triangle>()?;
     m.add_class::<CollisionChecker>()?;
     Ok(())

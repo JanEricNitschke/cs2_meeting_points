@@ -213,8 +213,9 @@ impl CollisionChecker {
     ///
     /// # Panics
     ///
-    /// Will panic if a triangle centroid coordinate comparison fails.
+    /// Will panic if not triangles were provided or a triangle centroid coordinate comparison fails.
     pub fn build_bvh(triangles: Vec<Triangle>) -> BVHNode {
+        assert!(!triangles.is_empty(), "No triangles provided");
         if triangles.len() == 1 {
             return BVHNode {
                 aabb: Aabb::from_triangle(&triangles[0]),
@@ -223,7 +224,6 @@ impl CollisionChecker {
                 right: None,
             };
         }
-
         // Compute centroids.
         let centroids: Vec<Position> = triangles.iter().map(Triangle::get_centroid).collect();
 
@@ -415,6 +415,9 @@ impl CollisionChecker {
         };
 
         let n_triangles = triangles.len();
+        if n_triangles == 0 {
+            return Err(PyValueError::new_err("No triangles provided"));
+        }
         let root = Self::build_bvh(triangles);
         Ok(Self { n_triangles, root })
     }

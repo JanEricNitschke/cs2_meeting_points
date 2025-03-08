@@ -169,9 +169,10 @@ fn main() {
             };
 
             println!("At config: map_name: {map_name}, granularity: {granularity}");
-
             let old_nav = Nav::from_json(Path::new(&format!("./nav/{map_name}.json")));
-            let map_areas = regularize_nav_areas(&old_nav.areas, granularity, map_name);
+            let walk_checker = load_collision_checker(map_name, CollisionCheckerStyle::Walkability);
+            println!("Regularizing nav areas for {map_name}");
+            let map_areas = regularize_nav_areas(&old_nav.areas, granularity, &walk_checker);
             let nav = Nav::new(0, 0, map_areas, true);
 
             let json_path_str = format!("./results/{map_name}.json");
