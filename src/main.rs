@@ -1,9 +1,10 @@
-#[cfg(not(target_env = "msvc"))]
+#[cfg(all(not(target_env = "msvc"), not(target_arch = "wasm32")))]
 use tikv_jemallocator::Jemalloc;
 
-#[cfg(not(target_env = "msvc"))]
+#[cfg(all(not(target_env = "msvc"), not(target_arch = "wasm32")))]
 #[global_allocator]
 static GLOBAL: Jemalloc = Jemalloc;
+
 use clap::{Args, Parser, Subcommand};
 use cs2_nav::collisions::{CollisionCheckerStyle, load_collision_checker};
 use cs2_nav::nav::{Nav, get_visibility_cache, group_nav_areas, regularize_nav_areas};
