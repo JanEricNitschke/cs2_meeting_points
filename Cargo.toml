@@ -1,6 +1,6 @@
 [package]
 name = "cs2-nav"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
 description = "Package to produce CS2 meeting point plots."
 license = "MIT"
