@@ -15,6 +15,19 @@ permissions:
   contents: read
 
 jobs:
+  crates-io:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Login to crates.io
+        run: cargo login ${{ secrets.CRATES_IO_API_TOKEN }}
+
+      - name: Publish package
+        run: cargo publish --allow-dirty
+
   linux:
     runs-on: ${{ matrix.platform.runner }}
     strategy:

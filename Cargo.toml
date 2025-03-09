@@ -7,16 +7,16 @@ license = "MIT"
 authors = ["Jan-Eric <janericnitschke@gmail.com"]
 readme = "README.md"
 repository = "https://github.com/JanEricNitschke/cs2_meeting_points"
-keywords = ["CS2", "Visualization"]
-categories = ["CS2", "Visualization"]
+keywords = ["CS2", "visualization"]
+categories = ["visualization"]
 include = [
     "/src",
-    "Cargo.toml",
-    "pyproject.toml",
-    "README.md",
-    "LICENSE",
-    "py.typed",
-    "*.pyi",
+    "/Cargo.toml",
+    "/pyproject.toml",
+    "/README.md",
+    "/LICENSE",
+    "/py.typed",
+    "/*.pyi",
 ]
 
 [dependencies]
