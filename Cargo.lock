@@ -235,7 +235,7 @@ dependencies = [
 
 [[package]]
 name = "cs2-nav"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "bincode",
  "byteorder",
