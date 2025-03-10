@@ -64,5 +64,5 @@ jobs:
           pip install maturin mypy pytest patchelf
 
           maturin develop
-          pytest .
+          pytest tests/
           python3 -m mypy.stubtest cs2_nav --allowlist tests/mypy-stubtest-allowlist.txt --ignore-unused-allowlist

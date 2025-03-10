@@ -25,7 +25,7 @@ pub const CROUCHING_SPEED: f64 = 85.0;
 const LADDER_SCALE_SPEED: f64 = 0.78;
 // Factor 2 for using W + D
 pub const LADDER_SPEED: f64 = RUNNING_SPEED * 2.0 * LADDER_SCALE_SPEED;
-pub const CROUCHING_ATTRIBUTE_FLAG: DynamicAttributeFlags = DynamicAttributeFlags::new(65536_u32);
+pub const CROUCHING_ATTRIBUTE_FLAG: DynamicAttributeFlags = DynamicAttributeFlags::new(65536_i64);
 pub const GRAVITY: f64 = 800.0;
 pub const JUMP_HEIGHT: f64 = 55.83;
 pub const CROUCH_JUMP_HEIGHT_GAIN: f64 = 66.02 - JUMP_HEIGHT;

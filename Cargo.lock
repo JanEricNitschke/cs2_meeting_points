@@ -235,9 +235,10 @@ dependencies = [
 
 [[package]]
 name = "cs2-nav"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "bincode",
+ "byteorder",
  "clap",
  "geo",
  "itertools 0.14.0",

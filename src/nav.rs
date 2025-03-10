@@ -10,6 +10,7 @@ use crate::position::{Position, inverse_distance_weighting};
 use crate::utils::create_file_with_parents;
 
 use bincode::{deserialize_from, serialize_into};
+use byteorder::{LittleEndian, ReadBytesExt};
 use geo::algorithm::line_measures::metric_spaces::Euclidean;
 use geo::geometry::{LineString, Point, Polygon};
 use geo::{Centroid, Contains, Distance, Intersects};
@@ -17,7 +18,10 @@ use itertools::{Itertools, iproduct};
 use petgraph::algo::astar;
 use petgraph::graphmap::DiGraphMap;
 use petgraph::visit::EdgeRef;
-use pyo3::{FromPyObject, IntoPyObject, pyclass, pyfunction, pymethods};
+use pyo3::exceptions::{PyException, PyFileNotFoundError};
+use pyo3::{
+    FromPyObject, IntoPyObject, PyErr, PyResult, create_exception, pyclass, pyfunction, pymethods,
+};
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
@@ -29,23 +33,24 @@ use std::f64;
 use std::fmt;
 use std::fs::File;
 use std::hash::Hash;
+use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 
 // --- DynamicAttributeFlags ---
-#[pyclass(eq)]
+#[pyclass(eq, module = "cs2_nav")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
-pub struct DynamicAttributeFlags(u32);
+pub struct DynamicAttributeFlags(i64);
 
 #[pymethods]
 impl DynamicAttributeFlags {
     #[must_use]
     #[new]
-    pub const fn new(value: u32) -> Self {
+    pub const fn new(value: i64) -> Self {
         Self(value)
     }
 }
 
-impl From<DynamicAttributeFlags> for u32 {
+impl From<DynamicAttributeFlags> for i64 {
     fn from(flag: DynamicAttributeFlags) -> Self {
         flag.0
     }
@@ -57,29 +62,70 @@ pub trait AreaLike {
     fn area_id(&self) -> u32;
 }
 
-#[pyclass(eq)]
+struct NavMeshConnection {
+    area_id: u32,
+    #[allow(dead_code)]
+    edge_id: u32,
+}
+
+impl NavMeshConnection {
+    fn from_binary(reader: &mut BufReader<File>) -> Result<Self, PyErr> {
+        let area_id = reader
+            .read_u32::<LittleEndian>()
+            .map_err(|_| InvalidNavFileError::new_err("Failed to read connection area id."))?;
+        let edge_id = reader
+            .read_u32::<LittleEndian>()
+            .map_err(|_| InvalidNavFileError::new_err("Failed to read connection edge id."))?;
+        Ok(Self { area_id, edge_id })
+    }
+}
+
+#[pyclass(eq, str, module = "cs2_nav")]
 /// A navigation area in the map.
 #[derive(Debug, Clone, Serialize)]
 pub struct NavArea {
     /// Unique ID of the area.
     ///
     /// Only unique for a given mesh
+    #[pyo3(get)]
     pub area_id: u32,
+    #[pyo3(get)]
     pub hull_index: u32,
+    #[pyo3(get)]
     pub dynamic_attribute_flags: DynamicAttributeFlags,
     /// Corners of the polygon making up the area.
+    #[pyo3(get)]
     pub corners: Vec<Position>,
     /// IDs of areas this one is connected to.
     ///
     /// Connections are not necessarily symmetric.
+    #[pyo3(get)]
     pub connections: Vec<u32>,
     /// IDs of ladders above this area.
+    #[pyo3(get)]
     pub ladders_above: Vec<u32>,
     /// IDs of ladders below this area.
+    #[pyo3(get)]
     pub ladders_below: Vec<u32>,
     /// Precomputed centroid of the area.
     #[pyo3(get)]
     centroid: Position,
+}
+
+impl fmt::Display for NavArea {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "NavArea(area_id: {}, hull_index: {}, dynamic_attribute_flags: {:?}, corners: {:?}, connections: {:?}, ladders_above: {:?}, ladders_below: {:?})",
+            self.area_id,
+            self.hull_index,
+            self.dynamic_attribute_flags,
+            self.corners,
+            self.connections,
+            self.ladders_above,
+            self.ladders_below
+        )
+    }
 }
 
 /// Equality is purely done through the `area_id`.
@@ -109,6 +155,117 @@ impl NavArea {
     pub fn to_polygon_2d(&self) -> Polygon {
         let coords: Vec<(f64, f64)> = self.corners.iter().map(|c| (c.x, c.y)).collect();
         Polygon::new(LineString::from(coords), vec![])
+    }
+
+    fn read_connections(reader: &mut BufReader<File>) -> Result<Vec<NavMeshConnection>, PyErr> {
+        let connection_count = reader
+            .read_u32::<LittleEndian>()
+            .map_err(|_| InvalidNavFileError::new_err("Failed to read connection count."))?;
+        let mut connections = Vec::with_capacity(connection_count as usize);
+        for _ in 0..connection_count {
+            connections.push(NavMeshConnection::from_binary(reader)?);
+        }
+        Ok(connections)
+    }
+
+    fn from_data(
+        reader: &mut BufReader<File>,
+        nav_mesh_version: u32,
+        polygons: Option<&Vec<Vec<Position>>>,
+    ) -> Result<Self, PyErr> {
+        let area_id = reader
+            .read_u32::<LittleEndian>()
+            .map_err(|_| InvalidNavFileError::new_err("Failed to read area id."))?;
+
+        let dynamic_attribute_flags =
+            DynamicAttributeFlags::new(reader.read_i64::<LittleEndian>().map_err(|_| {
+                InvalidNavFileError::new_err("Failed to read dynamic attribute flags.")
+            })?);
+
+        let hull_index = u32::from(
+            reader
+                .read_u8()
+                .map_err(|_| InvalidNavFileError::new_err("Failed to read hull index."))?,
+        );
+
+        let corners =
+            if nav_mesh_version >= 31 && polygons.is_some() {
+                let polygon_index = reader
+                    .read_u32::<LittleEndian>()
+                    .map_err(|_| InvalidNavFileError::new_err("Failed to read polygon index."))?
+                    as usize;
+                polygons.as_ref().unwrap()[polygon_index].clone()
+            } else {
+                let corner_count = reader
+                    .read_u32::<LittleEndian>()
+                    .map_err(|_| InvalidNavFileError::new_err("Failed to read corner count."))?;
+                let mut corners = Vec::with_capacity(corner_count as usize);
+                for _ in 0..corner_count {
+                    let x =
+                        f64::from(reader.read_f32::<LittleEndian>().map_err(|_| {
+                            InvalidNavFileError::new_err("Failed to read corner x.")
+                        })?);
+                    let y =
+                        f64::from(reader.read_f32::<LittleEndian>().map_err(|_| {
+                            InvalidNavFileError::new_err("Failed to read corner y.")
+                        })?);
+                    let z =
+                        f64::from(reader.read_f32::<LittleEndian>().map_err(|_| {
+                            InvalidNavFileError::new_err("Failed to read corner z.")
+                        })?);
+                    corners.push(Position { x, y, z });
+                }
+                corners
+            };
+
+        reader
+            .read_u32::<LittleEndian>()
+            .map_err(|_| InvalidNavFileError::new_err("Failed to skip."))?; // Skip almost always 0
+
+        let mut connections = Vec::new();
+        for _ in 0..corners.len() {
+            for conn in Self::read_connections(reader)? {
+                connections.push(conn.area_id);
+            }
+        }
+
+        reader
+            .read_exact(&mut [0u8; 5])
+            .map_err(|_| InvalidNavFileError::new_err("Failed to skip."))?; // Skip legacy hiding and encounter data counts
+
+        let ladder_above_count = reader
+            .read_u32::<LittleEndian>()
+            .map_err(|_| InvalidNavFileError::new_err("Failed to read ladder above count."))?;
+        let mut ladders_above = Vec::with_capacity(ladder_above_count as usize);
+        for _ in 0..ladder_above_count {
+            ladders_above.push(
+                reader
+                    .read_u32::<LittleEndian>()
+                    .map_err(|_| InvalidNavFileError::new_err("Failed to read ladder above."))?,
+            );
+        }
+
+        let ladder_below_count = reader
+            .read_u32::<LittleEndian>()
+            .map_err(|_| InvalidNavFileError::new_err("Failed to read ladder below count."))?;
+        let mut ladders_below = Vec::with_capacity(ladder_below_count as usize);
+        for _ in 0..ladder_below_count {
+            ladders_below.push(
+                reader
+                    .read_u32::<LittleEndian>()
+                    .map_err(|_| InvalidNavFileError::new_err("Failed to read ladder below."))?,
+            );
+        }
+
+        Ok(Self::new(
+            area_id,
+            hull_index,
+            dynamic_attribute_flags,
+            corners,
+            connections,
+            ladders_above,
+            ladders_below,
+        ))
     }
 }
 
@@ -289,7 +446,7 @@ impl From<NewNavArea> for NavArea {
 /// Result of a pathfinding operation.
 ///
 /// Contains the path as a list of `NavArea` objects and the total distance.
-#[pyclass(eq)]
+#[pyclass(eq, module = "cs2_nav")]
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct PathResult {
     #[pyo3(get, set)]
@@ -326,14 +483,40 @@ struct NavSerializationHelperStruct {
     pub areas: HashMap<u32, NavArea>,
 }
 
-#[pyclass]
+#[pyclass(eq, str, module = "cs2_nav")]
 #[derive(Debug, Clone)]
 pub struct Nav {
+    #[pyo3(get)]
     pub version: u32,
+    #[pyo3(get)]
     pub sub_version: u32,
+    #[pyo3(get)]
     pub areas: HashMap<u32, NavArea>,
+    #[pyo3(get)]
     pub is_analyzed: bool,
     pub graph: DiGraphMap<u32, f64>,
+}
+
+impl fmt::Display for Nav {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "Nav(version: {}, sub_version: {}, areas_count: {}, is_analyzed: {})",
+            self.version,
+            self.sub_version,
+            self.areas.len(), // Show the number of entries in the areas map
+            self.is_analyzed
+        )
+    }
+}
+
+impl PartialEq for Nav {
+    fn eq(&self, other: &Self) -> bool {
+        self.version == other.version
+            && self.sub_version == other.sub_version
+            && self.areas == other.areas
+            && self.is_analyzed == other.is_analyzed
+    }
 }
 
 impl Nav {
@@ -422,11 +605,95 @@ impl Nav {
             helper.is_analyzed,
         )
     }
+
+    fn read_polygons(
+        reader: &mut BufReader<File>,
+        version: u32,
+    ) -> Result<Vec<Vec<Position>>, PyErr> {
+        let corner_count = reader
+            .read_u32::<LittleEndian>()
+            .map_err(|_| InvalidNavFileError::new_err("Could not read corner count."))?;
+
+        let mut corners = Vec::with_capacity(corner_count as usize);
+
+        for _ in 0..corner_count {
+            let x = f64::from(
+                reader
+                    .read_f32::<LittleEndian>()
+                    .map_err(|_| InvalidNavFileError::new_err("Could not read corner x."))?,
+            );
+            let y = f64::from(
+                reader
+                    .read_f32::<LittleEndian>()
+                    .map_err(|_| InvalidNavFileError::new_err("Could not read corner y."))?,
+            );
+            let z = f64::from(
+                reader
+                    .read_f32::<LittleEndian>()
+                    .map_err(|_| InvalidNavFileError::new_err("Could not read corner z."))?,
+            );
+            corners.push(Position { x, y, z });
+        }
+
+        let polygon_count = reader
+            .read_u32::<LittleEndian>()
+            .map_err(|_| InvalidNavFileError::new_err("Could not read polygon count."))?;
+
+        let mut polygons = Vec::with_capacity(polygon_count as usize);
+        for _ in 0..polygon_count {
+            polygons.push(Self::read_polygon(reader, &corners, version)?);
+        }
+
+        Ok(polygons)
+    }
+
+    fn read_polygon(
+        reader: &mut BufReader<File>,
+        corners: &[Position],
+        version: u32,
+    ) -> Result<Vec<Position>, PyErr> {
+        let corner_count = reader
+            .read_u8()
+            .map_err(|_| InvalidNavFileError::new_err("Could not read polygon corner count."))?
+            as usize;
+        let mut polygon = Vec::with_capacity(corner_count);
+        for _ in 0..corner_count {
+            let index = reader
+                .read_u32::<LittleEndian>()
+                .map_err(|_| InvalidNavFileError::new_err("Could not read polygon corner index."))?
+                as usize;
+            polygon.push(corners[index]);
+        }
+        if version >= 35 {
+            reader
+                .read_u32::<LittleEndian>()
+                .map_err(|_| InvalidNavFileError::new_err("Failed to skip unk."))?; // Skip unk
+        }
+        Ok(polygon)
+    }
+
+    fn read_areas(
+        reader: &mut BufReader<File>,
+        polygons: Option<&Vec<Vec<Position>>>,
+        version: u32,
+    ) -> Result<HashMap<u32, NavArea>, PyErr> {
+        let area_count = reader
+            .read_u32::<LittleEndian>()
+            .map_err(|_| InvalidNavFileError::new_err("Failed to read area count."))?;
+        let mut areas = HashMap::default();
+        for _ in 0..area_count {
+            let area = NavArea::from_data(reader, version, polygons)?;
+            areas.insert(area.area_id, area);
+        }
+        Ok(areas)
+    }
 }
 
 fn has_overlap<T: PartialEq>(a: &[T], b: &[T]) -> bool {
     a.iter().any(|x| b.contains(x))
 }
+
+create_exception!(cs2_nav, InvalidNavFileError, PyException);
 
 #[pymethods]
 impl Nav {
@@ -617,6 +884,57 @@ impl Nav {
     #[staticmethod]
     pub fn from_json_py(filename: PathBuf) -> Self {
         Self::from_json(&filename)
+    }
+
+    #[allow(clippy::needless_pass_by_value)]
+    #[staticmethod]
+    fn from_path(filename: PathBuf) -> PyResult<Self> {
+        let file =
+            File::open(filename).map_err(|_| PyFileNotFoundError::new_err("File not found"))?;
+        let mut reader = BufReader::new(file);
+
+        let magic = reader
+            .read_u32::<LittleEndian>()
+            .map_err(|_| InvalidNavFileError::new_err("Could not read magic number"))?;
+        if magic != Self::MAGIC {
+            return Err(InvalidNavFileError::new_err("Unexpected magic number"));
+        }
+
+        let version = reader
+            .read_u32::<LittleEndian>()
+            .map_err(|_| InvalidNavFileError::new_err("Could not read version number"))?;
+        if !(30..=35).contains(&version) {
+            return Err(InvalidNavFileError::new_err("Unsupported nav version"));
+        }
+
+        let sub_version = reader
+            .read_u32::<LittleEndian>()
+            .map_err(|_| InvalidNavFileError::new_err("Could not read sub version number"))?;
+
+        let unk1 = reader
+            .read_u32::<LittleEndian>()
+            .map_err(|_| InvalidNavFileError::new_err("Could not read unk1"))?;
+        let is_analyzed = (unk1 & 0x0000_0001) > 0;
+
+        let polygons = if version >= 31 {
+            Some(Self::read_polygons(&mut reader, version)?)
+        } else {
+            None
+        };
+
+        if version >= 32 {
+            reader
+                .read_u32::<LittleEndian>()
+                .map_err(|_| InvalidNavFileError::new_err("Failed to skip unk2: {}"))?; // Skip unk2
+        }
+        if version >= 35 {
+            reader
+                .read_u32::<LittleEndian>()
+                .map_err(|_| InvalidNavFileError::new_err("Failed to skip unk3: {}"))?; // Skip unk3
+        }
+
+        let areas = Self::read_areas(&mut reader, polygons.as_ref(), version)?;
+        Ok(Self::new(version, sub_version, areas, is_analyzed))
     }
 }
 

@@ -64,6 +64,8 @@ class Nav:
     def save_to_json(self, filename: Path | str) -> None: ...
     @staticmethod
     def from_json(filename: Path | str) -> Nav: ...
+    @staticmethod
+    def from_path(filename: Path | str) -> Nav: ...
 
 def regularize_nav_areas(
     nav_areas: dict[int, NavArea], grid_granularity: int, walk_checker: VisibilityChecker
@@ -83,8 +85,11 @@ class VisibilityChecker:
     def __init__(self, tri_file: Path | str | None = None, triangles: list[Triangle] | None = None) -> None: ...
     def is_visible(self, start: Position, end: Position) -> bool: ...
 
+class InvalidNavFileError(Exception): ...
+
 __all__ = [
     "DynamicAttributeFlags",
+    "InvalidNavFileError",
     "Nav",
     "NavArea",
     "PathResult",

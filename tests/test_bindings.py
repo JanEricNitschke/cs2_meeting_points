@@ -1,8 +1,10 @@
+import tempfile
 from pathlib import Path
 
 import pytest
 from cs2_nav import (
     DynamicAttributeFlags,
+    InvalidNavFileError,
     Nav,
     NavArea,
     PathResult,
@@ -13,6 +15,8 @@ from cs2_nav import (
     inverse_distance_weighting,
     regularize_nav_areas,
 )
+
+DATA_PATH = Path(__file__).parent / "data"
 
 
 def test_position() -> None:
@@ -92,14 +96,15 @@ def test_nav() -> None:
     assert nav.find_path(pos1, 2) == PathResult(path=[area1, area2], distance=2.0)
     assert nav.find_path(2, 1).path == []
 
-    path_str = "test.json"
-    path = Path(path_str)
-    if path.exists():
-        msg = f"{path_str} already exists"
-        raise FileExistsError(msg)
-    nav.save_to_json("test.json")
-    assert isinstance(Nav.from_json(path), Nav)
-    path.unlink()
+
+def test_nav_files() -> None:
+    nav_from_bin = Nav.from_path(DATA_PATH / "de_whistle.nav")
+    nav_from_json = Nav.from_json(DATA_PATH / "de_whistle.json")
+    temp_path = DATA_PATH / "temp_de_whistle.nav"
+    nav_from_bin.save_to_json(temp_path)
+    nav_from_saved = Nav.from_json(temp_path)
+    assert nav_from_json == nav_from_bin == nav_from_saved
+    temp_path.unlink()
 
 
 def test_triangle():
@@ -181,3 +186,10 @@ def test_group_nav_areas() -> None:
     for key, value in grouped.items():
         assert isinstance(key, int)
         assert isinstance(value, int)
+
+
+def test_invalid_nav_file_error() -> None:
+    with tempfile.NamedTemporaryFile() as temp_file, pytest.raises(
+        InvalidNavFileError, match="Could not read magic number"
+    ):
+        Nav.from_path(temp_file.name)

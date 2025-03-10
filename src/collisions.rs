@@ -14,7 +14,7 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 
 /// A triangle in 3D space used for ray intersection checks.
-#[pyclass]
+#[pyclass(module = "cs2_nav")]
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Triangle {
     pub p1: Position,
@@ -191,7 +191,7 @@ pub struct BVHNode {
 }
 
 /// Collision checker using a Bounding Volume Hierarchy tree.
-#[pyclass(name = "VisibilityChecker")]
+#[pyclass(name = "VisibilityChecker", module = "cs2_nav")]
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CollisionChecker {
     pub n_triangles: usize,
