@@ -436,6 +436,11 @@ impl CollisionChecker {
         // If any intersection is found along the ray, then the segment is not visible.
         !Self::traverse_bvh(&self.root, &start, &direction, distance)
     }
+
+    #[must_use]
+    pub fn __repr__(&self) -> String {
+        format!("VisibilityChecker(n_triangles={})", self.n_triangles)
+    }
 }
 
 impl std::fmt::Display for CollisionChecker {
