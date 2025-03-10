@@ -40,7 +40,7 @@ impl Sub for Position {
 }
 
 #[derive(FromPyObject)]
-enum PositionFromInputOptions {
+pub(crate) enum PositionFromInputOptions {
     #[pyo3(transparent)]
     Other(Vec<f64>),
     #[pyo3(transparent)]
@@ -56,7 +56,7 @@ impl Position {
     }
 
     #[staticmethod]
-    fn from_input(value: PositionFromInputOptions) -> PyResult<Self> {
+    pub(crate) fn from_input(value: PositionFromInputOptions) -> PyResult<Self> {
         match value {
             PositionFromInputOptions::Position(pos) => Ok(pos),
             PositionFromInputOptions::Other(input) => {

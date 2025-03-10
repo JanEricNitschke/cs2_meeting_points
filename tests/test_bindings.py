@@ -131,6 +131,7 @@ def test_visibility_checker():
     checker = VisibilityChecker(triangles=[tri1])
     assert checker.n_triangles == 1
     assert checker.is_visible(ray_origin, ray_end)
+    assert checker.is_visible((0, 0, 0), [1, 0, 0])
     assert VisibilityChecker._ray_triangle_intersection(ray_origin, ray_end, tri2) is not None
 
     checker_from_tri_file = VisibilityChecker(path=DATA_PATH / "lobby_mapveto.tri")

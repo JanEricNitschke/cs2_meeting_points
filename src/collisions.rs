@@ -1,7 +1,7 @@
 /// Module for ray collision detection using a Bounding Volume Hierarchy tree.
 ///
 /// Taken from: <https://github.com/pnxenopoulos/awpy/blob/main/awpy/visibility.py>
-use crate::position::Position;
+use crate::position::{Position, PositionFromInputOptions};
 use crate::utils::create_file_with_parents;
 
 use bincode::{deserialize_from, serialize_into};
@@ -356,6 +356,20 @@ impl CollisionChecker {
         let mut file = File::open(filename).unwrap();
         deserialize_from(&mut file).unwrap()
     }
+
+    /// Check if the line segment between start and end is visible.
+    /// Returns true if no triangle obstructs the view.
+    #[must_use]
+    pub fn connection_unobstructed(&self, start: Position, end: Position) -> bool {
+        let mut direction = end - start;
+        let distance = direction.length();
+        if distance < 1e-6 {
+            return true;
+        }
+        direction = direction.normalize();
+        // If any intersection is found along the ray, then the segment is not visible.
+        !Self::traverse_bvh(&self.root, &start, &direction, distance)
+    }
 }
 
 #[pymethods]
@@ -367,7 +381,7 @@ impl CollisionChecker {
     /// Will return an error if both or neither of `tri_file` and `triangles` are provided.
     #[new]
     #[pyo3(signature = (path=None, triangles=None))]
-    pub fn py_new(path: Option<PathBuf>, triangles: Option<Vec<Triangle>>) -> PyResult<Self> {
+    fn py_new(path: Option<PathBuf>, triangles: Option<Vec<Triangle>>) -> PyResult<Self> {
         let triangles = match (path, triangles) {
             (Some(tri_file), None) => Self::read_tri_file(tri_file, 1000),
             (None, Some(triangles)) => triangles,
@@ -386,23 +400,16 @@ impl CollisionChecker {
         Ok(Self { n_triangles, root })
     }
 
-    /// Check if the line segment between start and end is visible.
-    /// Returns true if no triangle obstructs the view.
-    #[must_use]
-    #[pyo3(name = "is_visible")]
-    pub fn connection_unobstructed(&self, start: Position, end: Position) -> bool {
-        let mut direction = end - start;
-        let distance = direction.length();
-        if distance < 1e-6 {
-            return true;
-        }
-        direction = direction.normalize();
-        // If any intersection is found along the ray, then the segment is not visible.
-        !Self::traverse_bvh(&self.root, &start, &direction, distance)
+    fn is_visible(
+        &self,
+        start: PositionFromInputOptions,
+        end: PositionFromInputOptions,
+    ) -> PyResult<bool> {
+        Ok(self.connection_unobstructed(Position::from_input(start)?, Position::from_input(end)?))
     }
 
     #[must_use]
-    pub fn __repr__(&self) -> String {
+    fn __repr__(&self) -> String {
         format!("VisibilityChecker(n_triangles={})", self.n_triangles)
     }
 
