@@ -25,13 +25,13 @@ geo         = "0.29.3"
 itertools   = "0.14.0"
 petgraph    = "0.7.1"
 rayon       = "1.10.0"
-serde       = { version = "1.0.218", features = ["derive"] }
+serde       = { version = "1.0.219", features = ["derive"] }
 serde_json  = "1.0.140"
 simple-tqdm = { version = "0.2.0", features = ["rayon"] }
 rustc-hash  = "2.1.1"
 sha2        = "0.10.8"
 clap        = { version = "4.5.31", features = ["derive"] }
-pyo3        = { version = "0.23.5", features = ["extension-module"] }
+pyo3        = { version = "0.24.0", features = ["extension-module"] }
 byteorder = "1.5.0"
 
 [target.'cfg(all(not(target_env = "msvc"), not(target_arch = "wasm32")))'.dependencies]
