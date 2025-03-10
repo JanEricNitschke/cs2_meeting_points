@@ -232,7 +232,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
       - name: Generate artifact attestation
-        uses: actions/attest-build-provenance@v1
+        uses: actions/attest-build-provenance@v2
         with:
           subject-path: 'wheels-*/*'
       - name: Publish to PyPI
@@ -244,7 +244,7 @@ jobs:
           command: upload
           args: --non-interactive --skip-existing wheels-*/*
       - name: Upload to GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: |
             wasm-wheels/*.whl
