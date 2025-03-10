@@ -34,6 +34,14 @@ def test_position() -> None:
     assert isinstance(pos1.distance_2d(pos2), float)
     assert isinstance(pos1.can_jump_to(pos2), bool)
 
+    pos3 = Position.from_input((1, 2, 3))
+    pos4 = Position.from_input([1, 2, 3])
+    pos5 = Position.from_input(Position(1, 2, 3))
+    assert pos3 == pos4 == pos5
+
+    with pytest.raises(ValueError, match="Input must be a Vector3 or tuple or list of length 3"):
+        Position.from_input([1, 2])
+
 
 def test_inverse_distance_weighting() -> None:
     pos1 = Position(1, 2, 3)
@@ -116,13 +124,14 @@ def test_triangle():
 
 
 def test_visibility_checker():
-    pos1 = Position(1, 2, 3)
-    pos2 = Position(4, 5, 6)
-    pos3 = Position(7, 8, 9)
-    tri = Triangle(pos1, pos2, pos3)
-    checker = VisibilityChecker(triangles=[tri])
+    ray_origin = Position(0, 0, 0)
+    ray_end = Position(1, 0, 0)
+    tri1 = Triangle(Position(0.5, -1, -1), Position(0.5, 1, -1), Position(0.5, 0, -2))
+    tri2 = Triangle(Position(0.5, -1, -1), Position(0.5, 1, -1), Position(0.5, 0, 1))
+    checker = VisibilityChecker(triangles=[tri1])
     assert checker.n_triangles == 1
-    assert checker.is_visible(pos1, pos2)
+    assert checker.is_visible(ray_origin, ray_end)
+    assert VisibilityChecker._ray_triangle_intersection(ray_origin, ray_end, tri2) is not None
 
     checker_from_tri_file = VisibilityChecker(tri_file=DATA_PATH / "lobby_mapveto.tri")
     triangles = VisibilityChecker.read_tri_file(DATA_PATH / "lobby_mapveto.tri")

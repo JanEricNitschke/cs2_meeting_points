@@ -304,41 +304,6 @@ impl CollisionChecker {
         }
     }
 
-    /// Check for ray-triangle intersection.
-    /// Returns Some(distance) if intersecting; otherwise None.
-    #[must_use]
-    pub fn ray_triangle_intersection(
-        ray_origin: &Position,
-        ray_direction: &Position,
-        triangle: &Triangle,
-    ) -> Option<f64> {
-        let epsilon = 1e-6;
-        let edge1 = triangle.p2 - triangle.p1;
-        let edge2 = triangle.p3 - triangle.p1;
-        let h = ray_direction.cross(&edge2);
-        let a = edge1.dot(&h);
-
-        if a.abs() < epsilon {
-            return None;
-        }
-
-        let f = 1.0 / a;
-        let s = *ray_origin - triangle.p1;
-        let u = f * s.dot(&h);
-        if !(0.0..=1.0).contains(&u) {
-            return None;
-        }
-
-        let q = s.cross(&edge1);
-        let v = f * ray_direction.dot(&q);
-        if v < 0.0 || (u + v) > 1.0 {
-            return None;
-        }
-
-        let t = f * edge2.dot(&q);
-        if t > epsilon { Some(t) } else { None }
-    }
-
     /// Traverse the BVH tree to check for ray intersections.
     fn traverse_bvh(
         node: &BVHNode,
@@ -448,6 +413,43 @@ impl CollisionChecker {
     #[pyo3(signature = (tri_file, buffer_size=1000))]
     fn py_read_tri_file(tri_file: PathBuf, buffer_size: usize) -> Vec<Triangle> {
         Self::read_tri_file(tri_file, buffer_size)
+    }
+
+    /// Check for ray-triangle intersection.
+    /// Returns Some(distance) if intersecting; otherwise None.
+    #[must_use]
+    #[staticmethod]
+    #[pyo3(name = "_ray_triangle_intersection")]
+    pub fn ray_triangle_intersection(
+        ray_origin: &Position,
+        ray_direction: &Position,
+        triangle: &Triangle,
+    ) -> Option<f64> {
+        let epsilon = 1e-6;
+        let edge1 = triangle.p2 - triangle.p1;
+        let edge2 = triangle.p3 - triangle.p1;
+        let h = ray_direction.cross(&edge2);
+        let a = edge1.dot(&h);
+
+        if a.abs() < epsilon {
+            return None;
+        }
+
+        let f = 1.0 / a;
+        let s = *ray_origin - triangle.p1;
+        let u = f * s.dot(&h);
+        if !(0.0..=1.0).contains(&u) {
+            return None;
+        }
+
+        let q = s.cross(&edge1);
+        let v = f * ray_direction.dot(&q);
+        if v < 0.0 || (u + v) > 1.0 {
+            return None;
+        }
+
+        let t = f * edge2.dot(&q);
+        if t > epsilon { Some(t) } else { None }
     }
 }
 

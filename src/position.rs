@@ -1,7 +1,7 @@
 use crate::constants::{CROUCH_JUMP_HEIGHT_GAIN, GRAVITY, PLAYER_WIDTH, RUNNING_SPEED, jump_speed};
 
 use geo::geometry::Point;
-use pyo3::{Py, PyRef, PyRefMut, PyResult, pyclass, pyfunction, pymethods};
+use pyo3::{FromPyObject, Py, PyRef, PyRefMut, PyResult, pyclass, pyfunction, pymethods};
 use serde::{Deserialize, Serialize};
 use std::ops::{Add, Sub};
 
@@ -39,12 +39,35 @@ impl Sub for Position {
     }
 }
 
+#[derive(FromPyObject)]
+enum PositionFromInputOptions {
+    #[pyo3(transparent)]
+    Other(Vec<f64>),
+    #[pyo3(transparent)]
+    Position(Position),
+}
+
 #[pymethods]
 impl Position {
     #[must_use]
     #[new]
     pub const fn new(x: f64, y: f64, z: f64) -> Self {
         Self { x, y, z }
+    }
+
+    #[staticmethod]
+    fn from_input(value: PositionFromInputOptions) -> PyResult<Self> {
+        match value {
+            PositionFromInputOptions::Position(pos) => Ok(pos),
+            PositionFromInputOptions::Other(input) => {
+                if input.len() != 3 {
+                    return Err(pyo3::exceptions::PyValueError::new_err(
+                        "Input must be a Vector3 or tuple or list of length 3",
+                    ));
+                }
+                Ok(Self::new(input[0], input[1], input[2]))
+            }
+        }
     }
 
     #[must_use]
