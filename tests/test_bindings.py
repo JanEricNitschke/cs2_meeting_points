@@ -101,7 +101,7 @@ def test_nav_files() -> None:
     nav_from_bin = Nav.from_path(DATA_PATH / "de_whistle.nav")
     nav_from_json = Nav.from_json(DATA_PATH / "de_whistle.json")
     temp_path = DATA_PATH / "temp_de_whistle.nav"
-    nav_from_bin.save_to_json(temp_path)
+    nav_from_bin.to_json(temp_path)
     nav_from_saved = Nav.from_json(temp_path)
     assert nav_from_json == nav_from_bin == nav_from_saved
     temp_path.unlink()
@@ -121,7 +121,16 @@ def test_visibility_checker():
     pos3 = Position(7, 8, 9)
     tri = Triangle(pos1, pos2, pos3)
     checker = VisibilityChecker(triangles=[tri])
+    assert checker.n_triangles == 1
     assert checker.is_visible(pos1, pos2)
+
+    checker_from_tri_file = VisibilityChecker(tri_file=DATA_PATH / "lobby_mapveto.tri")
+    triangles = VisibilityChecker.read_tri_file(DATA_PATH / "lobby_mapveto.tri")
+    assert isinstance(triangles, list)
+    for tri in triangles:
+        assert isinstance(tri, Triangle)
+    checker_from_loaded_tris = VisibilityChecker(triangles=triangles)
+    assert checker_from_tri_file.n_triangles == checker_from_loaded_tris.n_triangles
 
     with pytest.raises(ValueError, match="Exactly one of tri_file or triangles must be provided"):
         VisibilityChecker(tri_file="test.json", triangles=[tri])

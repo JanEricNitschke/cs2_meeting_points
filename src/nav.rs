@@ -871,10 +871,10 @@ impl Nav {
     }
 
     /// Save the navigation mesh to a JSON file.
-    #[pyo3(name = "save_to_json")]
+    #[pyo3(name = "to_json")]
     #[allow(clippy::needless_pass_by_value)]
-    pub fn save_to_json_py(&self, filename: PathBuf) {
-        self.save_to_json(&filename);
+    pub fn save_to_json_py(&self, path: PathBuf) {
+        self.save_to_json(&path);
     }
 
     /// Load a struct instance from a JSON file
@@ -882,15 +882,14 @@ impl Nav {
     #[pyo3(name = "from_json")]
     #[allow(clippy::needless_pass_by_value)]
     #[staticmethod]
-    pub fn from_json_py(filename: PathBuf) -> Self {
-        Self::from_json(&filename)
+    pub fn from_json_py(path: PathBuf) -> Self {
+        Self::from_json(&path)
     }
 
     #[allow(clippy::needless_pass_by_value)]
     #[staticmethod]
-    fn from_path(filename: PathBuf) -> PyResult<Self> {
-        let file =
-            File::open(filename).map_err(|_| PyFileNotFoundError::new_err("File not found"))?;
+    fn from_path(path: PathBuf) -> PyResult<Self> {
+        let file = File::open(path).map_err(|_| PyFileNotFoundError::new_err("File not found"))?;
         let mut reader = BufReader::new(file);
 
         let magic = reader

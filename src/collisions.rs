@@ -40,57 +40,6 @@ impl Triangle {
     }
 }
 
-/// Read a .tri file containing triangles.
-///
-/// From <https://github.com/pnxenopoulos/awpy/blob/main/awpy/visibility.py#L757>
-/// # Panics
-///
-/// Will panic if no file exists at the given path or if the file cannot be read.
-#[allow(clippy::large_stack_arrays)]
-pub fn read_tri_file<P: AsRef<Path>>(tri_file: P) -> Vec<Triangle> {
-    const BUFFER_SIZE: usize = 1000;
-    // 9 f32 values per triangle, each f32 is 4 bytes.
-    const CHUNK_SIZE: usize = BUFFER_SIZE * 9 * 4;
-    let mut triangles = Vec::new();
-    let mut file = fs::File::open(tri_file).expect("Unable to open tri file");
-    let mut buffer = [0u8; CHUNK_SIZE];
-
-    loop {
-        let n = file.read(&mut buffer).expect("Failed to read file");
-        if n == 0 {
-            break;
-        }
-        // number of complete triangles in the buffer.
-        let num_complete_triangles = n / 36;
-        for i in 0..num_complete_triangles {
-            let offset = i * 36;
-            let slice = &buffer[offset..offset + 36];
-            let mut values = [0f32; 9];
-            for (i, chunk) in slice.chunks_exact(4).enumerate() {
-                values[i] = f32::from_ne_bytes(chunk.try_into().unwrap());
-            }
-            triangles.push(Triangle {
-                p1: Position::new(
-                    f64::from(values[0]),
-                    f64::from(values[1]),
-                    f64::from(values[2]),
-                ),
-                p2: Position::new(
-                    f64::from(values[3]),
-                    f64::from(values[4]),
-                    f64::from(values[5]),
-                ),
-                p3: Position::new(
-                    f64::from(values[6]),
-                    f64::from(values[7]),
-                    f64::from(values[8]),
-                ),
-            });
-        }
-    }
-    triangles
-}
-
 // ---------- Edge ----------
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Edge {
@@ -194,6 +143,7 @@ pub struct BVHNode {
 #[pyclass(name = "VisibilityChecker", module = "cs2_nav")]
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CollisionChecker {
+    #[pyo3(get)]
     pub n_triangles: usize,
     pub root: BVHNode,
 }
@@ -202,11 +152,61 @@ impl CollisionChecker {
     /// Construct a new `CollisionChecker` from a file of triangles or an existing list.
     #[must_use]
     pub fn new(tri_file: &Path) -> Self {
-        let triangles = read_tri_file(tri_file);
+        let triangles = Self::read_tri_file(tri_file, 1000);
 
         let n_triangles = triangles.len();
         let root = Self::build_bvh(triangles);
         Self { n_triangles, root }
+    }
+
+    /// Read a .tri file containing triangles.
+    ///
+    /// From <https://github.com/pnxenopoulos/awpy/blob/main/awpy/visibility.py#L757>
+    /// # Panics
+    ///
+    /// Will panic if no file exists at the given path or if the file cannot be read.
+    #[allow(clippy::large_stack_arrays)]
+    pub fn read_tri_file<P: AsRef<Path>>(tri_file: P, buffer_size: usize) -> Vec<Triangle> {
+        // 9 f32 values per triangle, each f32 is 4 bytes.
+        let chunk_size: usize = buffer_size * 9 * 4;
+        let mut triangles = Vec::new();
+        let mut file = fs::File::open(tri_file).expect("Unable to open tri file");
+        let mut buffer = vec![0u8; chunk_size].into_boxed_slice();
+
+        loop {
+            let n = file.read(&mut buffer).expect("Failed to read file");
+            if n == 0 {
+                break;
+            }
+            // number of complete triangles in the buffer.
+            let num_complete_triangles = n / 36;
+            for i in 0..num_complete_triangles {
+                let offset = i * 36;
+                let slice = &buffer[offset..offset + 36];
+                let mut values = [0f32; 9];
+                for (i, chunk) in slice.chunks_exact(4).enumerate() {
+                    values[i] = f32::from_ne_bytes(chunk.try_into().unwrap());
+                }
+                triangles.push(Triangle {
+                    p1: Position::new(
+                        f64::from(values[0]),
+                        f64::from(values[1]),
+                        f64::from(values[2]),
+                    ),
+                    p2: Position::new(
+                        f64::from(values[3]),
+                        f64::from(values[4]),
+                        f64::from(values[5]),
+                    ),
+                    p3: Position::new(
+                        f64::from(values[6]),
+                        f64::from(values[7]),
+                        f64::from(values[8]),
+                    ),
+                });
+            }
+        }
+        triangles
     }
 
     /// Build a Bounding Volume Hierarchy tree from a list of triangles.
@@ -405,7 +405,7 @@ impl CollisionChecker {
     #[pyo3(signature = (tri_file=None, triangles=None))]
     pub fn py_new(tri_file: Option<PathBuf>, triangles: Option<Vec<Triangle>>) -> PyResult<Self> {
         let triangles = match (tri_file, triangles) {
-            (Some(tri_file), None) => read_tri_file(tri_file),
+            (Some(tri_file), None) => Self::read_tri_file(tri_file, 1000),
             (None, Some(triangles)) => triangles,
             _ => {
                 return Err(PyValueError::new_err(
@@ -440,6 +440,15 @@ impl CollisionChecker {
     #[must_use]
     pub fn __repr__(&self) -> String {
         format!("VisibilityChecker(n_triangles={})", self.n_triangles)
+    }
+
+    #[must_use]
+    #[allow(clippy::needless_pass_by_value)]
+    #[staticmethod]
+    #[pyo3(name = "read_tri_file")]
+    #[pyo3(signature = (tri_file, buffer_size=1000))]
+    fn py_read_tri_file(tri_file: PathBuf, buffer_size: usize) -> Vec<Triangle> {
+        Self::read_tri_file(tri_file, buffer_size)
     }
 }
 
