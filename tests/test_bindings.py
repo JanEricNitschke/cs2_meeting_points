@@ -142,7 +142,7 @@ def test_visibility_checker():
     assert checker_from_tri_file.n_triangles == checker_from_loaded_tris.n_triangles
 
     with pytest.raises(ValueError, match="Exactly one of tri_file or triangles must be provided"):
-        VisibilityChecker(tri_file="test.json", triangles=[tri])
+        VisibilityChecker(tri_file="test.json", triangles=[tri1])
 
     with pytest.raises(ValueError, match="Exactly one of tri_file or triangles must be provided"):
         VisibilityChecker()
