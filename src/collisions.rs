@@ -165,7 +165,6 @@ impl CollisionChecker {
     /// # Panics
     ///
     /// Will panic if no file exists at the given path or if the file cannot be read.
-    #[allow(clippy::large_stack_arrays)]
     pub fn read_tri_file<P: AsRef<Path>>(tri_file: P, buffer_size: usize) -> Vec<Triangle> {
         // 9 f32 values per triangle, each f32 is 4 bytes.
         let chunk_size: usize = buffer_size * 9 * 4;
