@@ -366,9 +366,9 @@ impl CollisionChecker {
     ///
     /// Will return an error if both or neither of `tri_file` and `triangles` are provided.
     #[new]
-    #[pyo3(signature = (tri_file=None, triangles=None))]
-    pub fn py_new(tri_file: Option<PathBuf>, triangles: Option<Vec<Triangle>>) -> PyResult<Self> {
-        let triangles = match (tri_file, triangles) {
+    #[pyo3(signature = (path=None, triangles=None))]
+    pub fn py_new(path: Option<PathBuf>, triangles: Option<Vec<Triangle>>) -> PyResult<Self> {
+        let triangles = match (path, triangles) {
             (Some(tri_file), None) => Self::read_tri_file(tri_file, 1000),
             (None, Some(triangles)) => triangles,
             _ => {
