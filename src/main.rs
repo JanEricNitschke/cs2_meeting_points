@@ -8,9 +8,7 @@ static GLOBAL: Jemalloc = Jemalloc;
 use clap::{Args, Parser, Subcommand};
 use cs2_nav::collisions::{CollisionCheckerStyle, load_collision_checker};
 use cs2_nav::nav::{Nav, get_visibility_cache, group_nav_areas, regularize_nav_areas};
-use cs2_nav::spread::{
-    Spawns, SpreadStyle, generate_spreads, get_distances_from_spawns, save_spreads_to_json,
-};
+use cs2_nav::spread::{Spawns, generate_spreads, get_distances_from_spawns, save_spreads_to_json};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use sha2::{Digest, Sha256};
 use std::{
@@ -197,8 +195,7 @@ fn main() {
                 &spawn_distances.CT,
                 &spawn_distances.T,
                 &area_to_group,
-                SpreadStyle::Fine,
-                &visibility_cache,
+                &cs2_nav::spread::Perceivability::Visibility(visibility_cache),
             );
             let fine_spreads_path_str = format!("./results/{map_name}_fine_spreads.json");
             save_spreads_to_json(&fine_spreads, Path::new(&fine_spreads_path_str));

@@ -1,5 +1,5 @@
 /// Module for modelling the spread of players after the round starts and when they can see each other.
-use crate::nav::{AreaIdent, AreaLike, GroupId, Nav, NavArea, PathResult};
+use crate::nav::{AreaIdent, AreaLike, GroupId, Nav, NavArea, PathResult, areas_audible};
 use crate::position::Position;
 use crate::utils::create_file_with_parents;
 use core::f64;
@@ -20,6 +20,11 @@ use std::path::Path;
 pub struct Spawns {
     CT: Vec<Position>,
     T: Vec<Position>,
+}
+
+pub enum Perceivability {
+    Visibility(HashMap<(u32, u32), bool>),
+    Audibility,
 }
 
 impl Spawns {
@@ -181,12 +186,6 @@ pub struct SpreadResult {
     visibility_connections: Vec<(ReducedSpawnDistance, ReducedSpawnDistance)>,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
-pub enum SpreadStyle {
-    Fine,
-    Rough,
-}
-
 /// Save the spread results to a JSON file.
 ///
 /// # Panics
@@ -235,8 +234,7 @@ pub fn generate_spreads(
     spawn_distances_ct: &[SpawnDistance],
     spawn_distances_t: &[SpawnDistance],
     area_to_group: &HashMap<u32, GroupId>,
-    style: SpreadStyle,
-    visibility_cache: &HashMap<(u32, u32), bool>,
+    perceiption: &Perceivability,
 ) -> Vec<SpreadResult> {
     assert_sorted(spawn_distances_ct);
     assert_sorted(spawn_distances_t);
@@ -267,7 +265,7 @@ pub fn generate_spreads(
 
     let tqdm_config = Config::new()
         .with_leave(true)
-        .with_desc(format!("Generating spreads with style: {style:?}"));
+        .with_desc("Generating spreads".to_string());
     let mut p_bar = iter::repeat(()).take(n_iterations).tqdm_config(tqdm_config);
 
     loop {
@@ -329,14 +327,13 @@ pub fn generate_spreads(
         }
 
         // Get new areas that are visible from the current area.
-        let visible_areas = newly_visible(
+        let visible_areas = newly_perceivable(
             current_area,
             opposing_previous_areas,
             own_spotted_groups,
             opposing_spotted_groups,
             area_to_group,
-            style,
-            visibility_cache,
+            perceiption,
         );
 
         // If there are any newly visible areas that declare this one and the opposing one as spotted.
@@ -369,86 +366,33 @@ pub fn generate_spreads(
     result
 }
 
-/// Get the new areas that can be seen from `current_area` based on spread style.
-fn newly_visible<'a>(
-    current_area: &SpawnDistance,
-    previous_opposing_areas: &'a [&'a SpawnDistance],
-    own_spotted_groups: &mut HashSet<GroupId>,
-    opposing_spotted_groups: &mut HashSet<GroupId>,
-    area_to_group: &HashMap<u32, GroupId>,
-    style: SpreadStyle,
-    visibility_cache: &HashMap<(u32, u32), bool>,
-) -> Vec<&'a SpawnDistance> {
-    match style {
-        SpreadStyle::Fine => newly_visible_fine(
-            current_area,
-            previous_opposing_areas,
-            own_spotted_groups,
-            opposing_spotted_groups,
-            area_to_group,
-            visibility_cache,
-        ),
-        SpreadStyle::Rough => newly_visible_rough(
-            current_area,
-            previous_opposing_areas,
-            own_spotted_groups,
-            opposing_spotted_groups,
-            area_to_group,
-            visibility_cache,
-        ),
-    }
-}
-
-/// Get the new areas that can be seen from `current_area`.
-///
-/// This is a rough version where we consider any area already spotted if ANY of the path elements are spotted.
-fn newly_visible_rough<'a>(
-    current_area: &SpawnDistance,
-    previous_opposing_areas: &'a [&'a SpawnDistance],
-    own_spotted_groups: &mut HashSet<GroupId>,
-    opposing_spotted_groups: &mut HashSet<GroupId>,
-    area_to_group: &HashMap<u32, GroupId>,
-    visibility_cache: &HashMap<(u32, u32), bool>,
-) -> Vec<&'a SpawnDistance> {
-    if current_area
-        .path
-        .iter()
-        .any(|path_id| own_spotted_groups.contains(&area_to_group[path_id]))
-    {
-        return Vec::new();
-    }
-
-    let mut results = Vec::new();
-    // Previous opposing areas should already be sorted by distance.
-    for &opposing_area in previous_opposing_areas {
-        if visibility_cache[&(current_area.area.area_id(), opposing_area.area.area_id())] {
-            own_spotted_groups.insert(area_to_group[&current_area.area.area_id]);
-            opposing_spotted_groups.insert(area_to_group[&opposing_area.area.area_id]);
-            results.push(opposing_area);
-        }
-    }
-    results
-}
-
 /// Get the new areas that can be seen from `current_area`.
 ///
 /// This is the fine version where we only skip areas that are marked as spotted explicitly.
 /// This has previously been set based on the spottedness of the group of the last path element
 /// for the `current_area` itself.
-fn newly_visible_fine<'a>(
+fn newly_perceivable<'a>(
     current_area: &SpawnDistance,
     previous_opposing_areas: &'a [&'a SpawnDistance],
     own_spotted_groups: &HashSet<GroupId>,
     opposing_spotted_groups: &HashSet<GroupId>,
     area_to_group: &HashMap<u32, GroupId>,
-    visibility_cache: &HashMap<(u32, u32), bool>,
+    perceiption: &Perceivability,
 ) -> Vec<&'a SpawnDistance> {
     previous_opposing_areas
         .par_iter()
         .filter(|opposing_area| {
             !(own_spotted_groups.contains(&area_to_group[&current_area.area.area_id])
                 && opposing_spotted_groups.contains(&area_to_group[&opposing_area.area.area_id]))
-                && visibility_cache[&(current_area.area.area_id(), opposing_area.area.area_id())]
+                && match perceiption {
+                    Perceivability::Visibility(visibility_cache) => {
+                        visibility_cache
+                            [&(current_area.area.area_id(), opposing_area.area.area_id())]
+                    }
+                    Perceivability::Audibility => {
+                        areas_audible(&current_area.area, &opposing_area.area)
+                    }
+                }
         })
         .copied()
         .collect()

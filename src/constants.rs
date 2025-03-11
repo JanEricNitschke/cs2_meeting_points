@@ -45,3 +45,6 @@ pub const PLAYER_WIDTH: f64 = 32.0;
 pub const PLAYER_EYE_LEVEL: f64 = 64.093_811;
 pub const PLAYER_CROUCH_HEIGHT: f64 = 54.0;
 pub const PLAYER_CROUCH_EYE_LEVEL: f64 = 46.076_218;
+
+// Audio
+pub const FOOTSTEP_RANGE: u32 = 1100;

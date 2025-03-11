@@ -3,8 +3,8 @@
 /// Core taken from: <https://github.com/pnxenopoulos/awpy/blob/main/awpy/nav.py>
 use crate::collisions::CollisionChecker;
 use crate::constants::{
-    CROUCHING_ATTRIBUTE_FLAG, CROUCHING_SPEED, JUMP_HEIGHT, LADDER_SPEED, PLAYER_CROUCH_HEIGHT,
-    PLAYER_EYE_LEVEL, PLAYER_HEIGHT, PLAYER_WIDTH, RUNNING_SPEED,
+    CROUCHING_ATTRIBUTE_FLAG, CROUCHING_SPEED, FOOTSTEP_RANGE, JUMP_HEIGHT, LADDER_SPEED,
+    PLAYER_CROUCH_HEIGHT, PLAYER_EYE_LEVEL, PLAYER_HEIGHT, PLAYER_WIDTH, RUNNING_SPEED,
 };
 use crate::position::{Position, inverse_distance_weighting};
 use crate::utils::create_file_with_parents;
@@ -937,12 +937,16 @@ impl Nav {
     }
 }
 
+pub fn areas_audible<T: AreaLike>(area1: &T, area2: &T) -> bool {
+    area1.centroid().distance(&area2.centroid()) <= f64::from(FOOTSTEP_RANGE)
+}
+
 /// Checks if two areas are visible to each other.
 ///
 /// Area positions are on the floor, so a height correction to eye level is applied.
 /// Note that this is conservative and can have false negatives for "actual" visibility.
 /// For example if one player can see the feet of another player, but not the head.
-fn areas_visible<T: AreaLike>(area1: &T, area2: &T, vis_checker: &CollisionChecker) -> bool {
+pub fn areas_visible<T: AreaLike>(area1: &T, area2: &T, vis_checker: &CollisionChecker) -> bool {
     let height_correction = PLAYER_EYE_LEVEL;
 
     let area1_centroid = area1.centroid();
@@ -1008,7 +1012,7 @@ pub fn get_visibility_cache(
 /// Requires a collision checker that includes player clippings.
 /// For walkability we need to account for player width and height.
 /// For height we also need to consider crouching.
-fn areas_walkable<T: AreaLike>(area1: &T, area2: &T, walk_checker: &CollisionChecker) -> bool {
+pub fn areas_walkable<T: AreaLike>(area1: &T, area2: &T, walk_checker: &CollisionChecker) -> bool {
     let height = if area1.requires_crouch() || area2.requires_crouch() {
         PLAYER_CROUCH_HEIGHT
     } else {
