@@ -63,7 +63,7 @@ jobs:
       - name: Rename and move binaries
         run: |
           mkdir -p artifacts
-          if [[ "${{ matrix.target }}" == *"windows"* ]]; then
+          if [ "${{ matrix.target }}" == "x86_64-pc-windows-msvc" ]; then
             mv target/${{ matrix.target }}/release/${{ env.BIN_NAME }}.exe artifacts/${{ env.BIN_NAME }}-${{ matrix.target }}.exe
           else
             mv target/${{ matrix.target }}/release/${{ env.BIN_NAME }} artifacts/${{ env.BIN_NAME }}-${{ matrix.target }}
