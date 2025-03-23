@@ -14,6 +14,9 @@ on:
 permissions:
   contents: read
 
+env:
+  BIN_NAME: cs2_meeting_points
+
 jobs:
   crates-io:
     runs-on: ubuntu-latest
@@ -27,6 +30,75 @@ jobs:
 
       - name: Publish package
         run: cargo publish --allow-dirty
+
+
+  build-binaries:
+    name: Build Binaries
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+          - target: x86_64-apple-darwin
+            os: macos-latest
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Build for ${{ matrix.target }}
+        run: cargo build --release --target=${{ matrix.target }}
+
+      - name: Rename and move binaries
+        run: |
+          mkdir -p artifacts
+          if [[ "${{ matrix.target }}" == *"windows"* ]]; then
+            mv target/${{ matrix.target }}/release/${{ env.BIN_NAME }}.exe artifacts/${{ env.BIN_NAME }}-${{ matrix.target }}.exe
+          else
+            mv target/${{ matrix.target }}/release/${{ env.BIN_NAME }} artifacts/${{ env.BIN_NAME }}-${{ matrix.target }}
+          fi
+
+      - name: Upload binaries as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries-${{ matrix.target }}
+          path: artifacts/*
+
+  build-package:
+    name: Package Crate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Package crate
+        run: cargo package
+
+      - name: Extract version from Cargo.toml
+        id: version
+        run: echo "VERSION=$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[0].version')" >> "$GITHUB_ENV"
+
+      - name: Upload crate package as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: crate
+          path: target/package/*.crate
+
 
   linux:
     runs-on: ${{ matrix.platform.runner }}
@@ -159,45 +231,46 @@ jobs:
           name: wheels-macos-${{ matrix.platform.target }}
           path: dist
 
-  # emscripten:
-  #   runs-on: ${{ matrix.platform.runner }}
-  #   strategy:
-  #     matrix:
-  #       platform:
-  #         - runner: ubuntu-22.04
-  #           target: wasm32-unknown-emscripten
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - uses: actions-rs/toolchain@v1
-  #       with:
-  #         toolchain: stable
-  #     - run: pip install pyodide-build
-  #     - name: Get Emscripten and Python version info
-  #       shell: bash
-  #       run: |
-  #         echo EMSCRIPTEN_VERSION=$(pyodide config get emscripten_version) >> $GITHUB_ENV
-  #         echo PYTHON_VERSION=$(pyodide config get python_version | cut -d '.' -f 1-2) >> $GITHUB_ENV
-  #         pip uninstall -y pyodide-build
-  #     - uses: mymindstorm/setup-emsdk@v12
-  #       with:
-  #         version: ${{ env.EMSCRIPTEN_VERSION }}
-  #         actions-cache-folder: emsdk-cache
-  #     - uses: actions/setup-python@v5
-  #       with:
-  #         python-version: ${{ env.PYTHON_VERSION }}
-  #     - run: pip install pyodide-build
-  #     - name: Build wheels
-  #       uses: PyO3/maturin-action@v1
-  #       with:
-  #         target: ${{ matrix.platform.target }}
-  #         args: --release --out dist -i ${{ env.PYTHON_VERSION }}
-  #         sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
-  #         rust-toolchain: nightly
-  #     - name: Upload wheels
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: wasm-wheels
-  #         path: dist
+  emscripten:
+    continue-on-error: true
+    runs-on: ${{ matrix.platform.runner }}
+    strategy:
+      matrix:
+        platform:
+          - runner: ubuntu-22.04
+            target: wasm32-unknown-emscripten
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - run: pip install pyodide-build
+      - name: Get Emscripten and Python version info
+        shell: bash
+        run: |
+          echo EMSCRIPTEN_VERSION=$(pyodide config get emscripten_version) >> $GITHUB_ENV
+          echo PYTHON_VERSION=$(pyodide config get python_version | cut -d '.' -f 1-2) >> $GITHUB_ENV
+          pip uninstall -y pyodide-build
+      - uses: mymindstorm/setup-emsdk@v12
+        with:
+          version: ${{ env.EMSCRIPTEN_VERSION }}
+          actions-cache-folder: emsdk-cache
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - run: pip install pyodide-build
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.platform.target }}
+          args: --release --out dist -i ${{ env.PYTHON_VERSION }}
+          sccache: ${{ !startsWith(github.ref, 'refs/tags/') }}
+          rust-toolchain: nightly
+      - name: Upload wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-wasm
+          path: dist
 
   sdist:
     runs-on: ubuntu-latest
@@ -221,7 +294,7 @@ jobs:
     name: Release
     runs-on: ubuntu-latest
     if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
-    needs: [linux, musllinux, windows, macos, sdist]  # , emscripten
+    needs: [linux, musllinux, windows, macos, sdist, emscripten, build-package, build-binaries]
     permissions:
       # Use to sign the release artifacts
       id-token: write
@@ -234,7 +307,10 @@ jobs:
       - name: Generate artifact attestation
         uses: actions/attest-build-provenance@v2
         with:
-          subject-path: 'wheels-*/*'
+          subject-path: |
+            'wheels-*/*'
+            'artifacts/*''
+            'target/package/*.crate'
       - name: Publish to PyPI
         if: ${{ startsWith(github.ref, 'refs/tags/') }}
         uses: PyO3/maturin-action@v1
@@ -246,6 +322,12 @@ jobs:
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ env.VERSION }}
+          body: "Automated release for version ${{ env.VERSION }}"
           files: |
-            wasm-wheels/*.whl
+            artifacts/*
+            target/package/*.crate
+            wheels-*/*
+          draft: false
           prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') }}
