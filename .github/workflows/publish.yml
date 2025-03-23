@@ -312,8 +312,8 @@ jobs:
         with:
           subject-path: |
             wheels-*/*
-            binary-*
-            *.crate
+            binary-*/*
+            crate/*
       - name: Publish to PyPI
         if: ${{ startsWith(github.ref, 'refs/tags/') }}
         uses: PyO3/maturin-action@v1
@@ -329,8 +329,8 @@ jobs:
           name: Release ${{ env.VERSION }}
           body: "Automated release for version ${{ env.VERSION }}"
           files: |
-            binary-*
-            *.crate
             wheels-*/*
+            binary-*/*
+            crate/*
           draft: false
           prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') }}
