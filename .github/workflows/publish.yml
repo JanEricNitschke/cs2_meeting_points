@@ -34,6 +34,7 @@ jobs:
 
   build-binaries:
     name: Build Binaries
+    continue-on-error: true
     strategy:
       matrix:
         include:
