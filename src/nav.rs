@@ -1206,12 +1206,12 @@ fn create_new_nav_areas(
         // If an area has no old area that its center is in, then assign the closest intersecting one.
         let primary_origs = if primary_origs.is_empty() {
             let min_id = extra_orig_ids.iter().min_by(|a, b| {
-                let distance_a = Euclidean::distance(
+                let distance_a = Euclidean.distance(
                     &area_extra_info[*a].polygon.centroid().unwrap(),
                     &center_point,
                 );
 
-                let distance_b = Euclidean::distance(
+                let distance_b = Euclidean.distance(
                     &area_extra_info[*b].polygon.centroid().unwrap(),
                     &center_point,
                 );
