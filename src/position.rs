@@ -102,9 +102,13 @@ impl Position {
         *self * other
     }
 
-    #[must_use]
-    pub fn __truediv__(&self, other: f64) -> Self {
-        *self / other
+    pub fn __truediv__(&self, other: f64) -> PyResult<Self> {
+        if other == 0.0 {
+            return Err(pyo3::exceptions::PyZeroDivisionError::new_err(
+                "Division by zero",
+            ));
+        }
+        Ok(*self / other)
     }
 
     #[must_use]
