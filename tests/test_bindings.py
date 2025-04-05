@@ -26,6 +26,8 @@ def test_position() -> None:
     assert (a, b, c) == (1, 2, 3)
     assert (pos1 + pos2).x == 5
     assert (pos1 - pos2).y == -3
+    assert (pos1 * 2) == Position(2, 4, 6)
+    assert (pos1 / 2) == Position(0.5, 1, 1.5)
     assert isinstance(pos1.dot(pos2), float)
     assert isinstance(pos1.cross(pos2), Position)
     assert isinstance(pos1.length(), float)

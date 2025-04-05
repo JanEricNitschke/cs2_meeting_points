@@ -3,7 +3,7 @@ use crate::constants::{CROUCH_JUMP_HEIGHT_GAIN, GRAVITY, PLAYER_WIDTH, RUNNING_S
 use geo::geometry::Point;
 use pyo3::{FromPyObject, Py, PyRef, PyRefMut, PyResult, pyclass, pyfunction, pymethods};
 use serde::{Deserialize, Serialize};
-use std::ops::{Add, Sub};
+use std::ops::{Add, Div, Mul, Sub};
 
 #[pyclass(eq, module = "cs2_nav")]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -36,6 +36,22 @@ impl Sub for Position {
 
     fn sub(self, other: Self) -> Self {
         Self::new(self.x - other.x, self.y - other.y, self.z - other.z)
+    }
+}
+
+impl Mul<f64> for Position {
+    type Output = Self;
+
+    fn mul(self, other: f64) -> Self {
+        Self::new(self.x * other, self.y * other, self.z * other)
+    }
+}
+
+impl Div<f64> for Position {
+    type Output = Self;
+
+    fn div(self, other: f64) -> Self {
+        Self::new(self.x / other, self.y / other, self.z / other)
     }
 }
 
@@ -76,8 +92,19 @@ impl Position {
     }
 
     #[must_use]
+    #[allow(clippy::missing_const_for_fn)]
     pub fn __add__(&self, other: &Self) -> Self {
         *self + *other
+    }
+
+    #[must_use]
+    pub fn __mul__(&self, other: f64) -> Self {
+        *self * other
+    }
+
+    #[must_use]
+    pub fn __truediv__(&self, other: f64) -> Self {
+        *self / other
     }
 
     #[must_use]
