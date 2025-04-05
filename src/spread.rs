@@ -266,7 +266,7 @@ pub fn generate_spreads(
     let tqdm_config = Config::new()
         .with_leave(true)
         .with_desc("Generating spreads".to_string());
-    let mut p_bar = iter::repeat(()).take(n_iterations).tqdm_config(tqdm_config);
+    let mut p_bar = iter::repeat_n((), n_iterations).tqdm_config(tqdm_config);
 
     loop {
         p_bar.next();
