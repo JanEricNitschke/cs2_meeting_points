@@ -81,6 +81,7 @@ class Triangle:
     p3: Position
 
     def get_centroid(self) -> Position: ...
+    def ray_intersection(self, ray_origin: Position, ray_direction: Position) -> float | None: ...
 
 @final
 class VisibilityChecker:
@@ -94,12 +95,6 @@ class VisibilityChecker:
     ) -> bool: ...
     @staticmethod
     def read_tri_file(tri_file: Path | str, buffer_size: int = 1000) -> list[Triangle]: ...
-    @staticmethod
-    def _ray_triangle_intersection(
-        ray_origin: Position,
-        ray_direction: Position,
-        triangle: Triangle,
-    ) -> float | None: ...
 
 class InvalidNavFileError(Exception): ...
 
