@@ -1,6 +1,6 @@
 [package]
 name = "cs2-nav"
-version = "0.3.15"
+version = "0.3.16"
 edition = "2024"
 description = "Package to produce CS2 meeting point plots."
 license = "MIT"
@@ -32,7 +32,7 @@ rustc-hash  = "2.1.1"
 sha2        = "0.10.8"
 clap        = { version = "4.5.34", features = ["derive"] }
 pyo3        = { version = "0.24.0", features = ["extension-module"] }
-byteorder = "1.5.0"
+byteorder   = "1.5.0"
 
 [target.'cfg(all(not(target_env = "msvc"), not(target_arch = "wasm32")))'.dependencies]
 tikv-jemallocator = "0.6"
