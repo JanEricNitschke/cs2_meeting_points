@@ -102,6 +102,11 @@ impl Position {
         *self * other
     }
 
+    /// Python division operator
+    ///
+    /// # Errors
+    ///
+    /// Errors if `other` is zero.
     pub fn __truediv__(&self, other: f64) -> PyResult<Self> {
         if other == 0.0 {
             return Err(pyo3::exceptions::PyZeroDivisionError::new_err(
