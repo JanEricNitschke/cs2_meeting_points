@@ -165,9 +165,19 @@ impl std::fmt::Display for Aabb {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct BVHNode {
     pub aabb: Aabb,
-    pub triangle: Option<Triangle>,
-    pub left: Option<Box<BVHNode>>,
-    pub right: Option<Box<BVHNode>>,
+    pub kind: BVHNodeKind,
+}
+
+/// Kind of BVH node: either a leaf with a triangle, or an internal node with two children.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum BVHNodeKind {
+    Leaf {
+        triangle: Triangle,
+    },
+    Internal {
+        left: Box<BVHNode>,
+        right: Box<BVHNode>,
+    },
 }
 
 /// Collision checker using a Bounding Volume Hierarchy tree.
@@ -249,9 +259,9 @@ impl CollisionChecker {
         if triangles.len() == 1 {
             return BVHNode {
                 aabb: Aabb::from_triangle(&triangles[0]),
-                triangle: Some(triangles[0].clone()),
-                left: None,
-                right: None,
+                kind: BVHNodeKind::Leaf {
+                    triangle: triangles[0].clone(),
+                },
             };
         }
         // Compute centroids.
@@ -329,9 +339,10 @@ impl CollisionChecker {
                 min_point,
                 max_point,
             },
-            triangle: None,
-            left: Some(Box::new(left)),
-            right: Some(Box::new(right)),
+            kind: BVHNodeKind::Internal {
+                left: Box::new(left),
+                right: Box::new(right),
+            },
         }
     }
 
@@ -346,26 +357,18 @@ impl CollisionChecker {
             return false;
         }
 
-        if let Some(ref tri) = node.triangle {
-            if let Some(t) = tri.ray_intersection(ray_origin, ray_direction) {
-                return t <= max_distance;
+        match node.kind {
+            BVHNodeKind::Internal {
+                ref left,
+                ref right,
+            } => {
+                Self::traverse_bvh(left, ray_origin, ray_direction, max_distance)
+                    || Self::traverse_bvh(right, ray_origin, ray_direction, max_distance)
             }
-            return false;
+            BVHNodeKind::Leaf { ref triangle } => triangle
+                .ray_intersection(ray_origin, ray_direction)
+                .is_some_and(|t| t <= max_distance),
         }
-
-        let left_hit = Self::traverse_bvh(
-            node.left.as_ref().unwrap(),
-            ray_origin,
-            ray_direction,
-            max_distance,
-        );
-        let right_hit = Self::traverse_bvh(
-            node.right.as_ref().unwrap(),
-            ray_origin,
-            ray_direction,
-            max_distance,
-        );
-        left_hit || right_hit
     }
 
     /// Save the loaded collision checker with the BVH to a file.
