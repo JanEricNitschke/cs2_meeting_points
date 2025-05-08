@@ -214,13 +214,11 @@ def game_to_pixel(map_name: str, position: Vector3) -> tuple[float, float, float
         Tuple[float, float, float]: Transformed coordinates (X,Y,Z).
     """
     current_map_data = MAP_DATA[map_name]
-    start_x = current_map_data["pos_x"]
-    start_y = current_map_data["pos_y"]
+    pos_x = current_map_data["pos_x"]
+    pos_y = current_map_data["pos_y"]
     scale = current_map_data["scale"]
-    x = position.x - start_x
-    x /= scale
-    y = start_y - position.y
-    y /= scale
+    x = (position.x - pos_x)/ scale
+    y = (pos_y - position.y) / scale
     z = position.z
     map_vertical_sections = current_map_data.get("vertical_sections", {})
     if map_vertical_sections:
