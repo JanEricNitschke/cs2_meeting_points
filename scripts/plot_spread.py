@@ -217,7 +217,7 @@ def game_to_pixel(map_name: str, position: Vector3) -> tuple[float, float, float
     pos_x = current_map_data["pos_x"]
     pos_y = current_map_data["pos_y"]
     scale = current_map_data["scale"]
-    x = (position.x - pos_x)/ scale
+    x = (position.x - pos_x) / scale
     y = (pos_y - position.y) / scale
     z = position.z
     map_vertical_sections = current_map_data.get("vertical_sections", {})
@@ -295,6 +295,12 @@ def _plot_points(
         axis.plot(x, y, marker=marker, color=color, markersize=marker_size, alpha=1.0, zorder=10)
 
 
+def same_map_level(area1: NavArea, area2: NavArea, map_name: str) -> bool:
+    area1_level, _ = find_level(area1.centroid.z, MAP_DATA[map_name].get("vertical_sections", {}))
+    area2_level, _ = find_level(area2.centroid.z, MAP_DATA[map_name].get("vertical_sections", {}))
+    return area1_level == area2_level
+
+
 def _plot_connection(
     area1: NavArea,
     area2: NavArea,
@@ -305,10 +311,7 @@ def _plot_connection(
     color: str = "red",
     lw: float = 0.3,
 ) -> None:
-    area1_level = find_level(area1.centroid.z, MAP_DATA[map_name].get("vertical_sections", {}))[0]
-    area2_level = find_level(area2.centroid.z, MAP_DATA[map_name].get("vertical_sections", {}))[0]
-
-    if area1_level == area2_level:
+    if same_map_level(area1, area2, map_name):
         x1, y1, _ = game_to_pixel(map_name, area1.centroid)
         x2, y2, _ = game_to_pixel(map_name, area2.centroid)
         axis.plot([x1, x2], [y1, y2], color=color, lw=lw)
@@ -333,12 +336,6 @@ def _plot_connection(
         x1, y1, _ = game_to_pixel(map_name, area1_at_2_z)
         x2, y2, _ = game_to_pixel(map_name, area2.centroid)
         axis.plot([x1, x2], [y1, y2], color=color, lw=lw)
-
-
-def same_map_level(area1: NavArea, area2: NavArea, map_name: str) -> bool:
-    area1_level = find_level(area1.centroid.z, MAP_DATA[map_name].get("vertical_sections", {}))[0]
-    area2_level = find_level(area2.centroid.z, MAP_DATA[map_name].get("vertical_sections", {}))[0]
-    return area1_level == area2_level
 
 
 def _plot_path(
