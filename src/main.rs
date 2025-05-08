@@ -155,6 +155,7 @@ fn main() {
                 "ar_shoots",
                 "ar_baggage",
                 "ar_pool_day",
+                "de_grail",
                 "de_palais",
                 "de_vertigo",
                 "de_whistle",
