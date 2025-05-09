@@ -201,7 +201,7 @@ def find_level(z_value: float, vertical_sections: dict[str, VerticalSection]) ->
     return len(sorted_keys) - 1, lowest_key
 
 
-def game_to_pixel(map_name: str, position: Vector3) -> tuple[float, float, float]:
+def game_to_pixel(map_name: str, position: Vector3, *, radar_size: int = 1024) -> tuple[float, float, float]:
     """Transforms a `(X, Y, Z)` CS2-coord to pixel coord.
 
     Modified from awpy to better support multi level maps.
@@ -223,11 +223,11 @@ def game_to_pixel(map_name: str, position: Vector3) -> tuple[float, float, float
     map_vertical_sections = current_map_data.get("vertical_sections", {})
     if map_vertical_sections:
         level, _ = find_level(z, map_vertical_sections)
-        y += level * 1024
+        y += level * radar_size
     return (x, y, z)
 
 
-def plot_map(map_name: str) -> tuple[plt.Figure, Axes]:
+def plot_map(map_name: str) -> tuple[plt.Figure, Axes, int]:
     """Modified from awpy to better support multi level maps."""
     fig, ax = plt.subplots()
 
@@ -254,7 +254,7 @@ def plot_map(map_name: str) -> tuple[plt.Figure, Axes]:
     # fig.patch.set_facecolor("black")
     plt.tight_layout()
     fig.set_size_inches(19.2, 10.8 * (max(len(vertical_sections), 1)))
-    return fig, ax
+    return fig, ax, map_bg.shape[1]
 
 
 def _plot_tiles(
@@ -265,12 +265,14 @@ def _plot_tiles(
     facecolor: str = "None",
     zorder: int = 1,
     linewidth: float = 1.0,
+    *,
+    radar_size: int = 1024,
 ) -> None:
     axis.add_collection(
         PatchCollection(
             [
                 patches.Polygon(
-                    [game_to_pixel(map_name, c)[0:2] for c in area.corners],
+                    [game_to_pixel(map_name, c, radar_size=radar_size)[0:2] for c in area.corners],
                 )
                 for area in map_areas.values()
             ],
@@ -289,9 +291,11 @@ def _plot_points(
     color: str = "green",
     marker_size: float = 5,
     marker: str = "o",
+    *,
+    radar_size: int = 1024,
 ) -> None:
     for point in points:
-        x, y, _ = game_to_pixel(map_name, point)
+        x, y, _ = game_to_pixel(map_name, point, radar_size=radar_size)
         axis.plot(x, y, marker=marker, color=color, markersize=marker_size, alpha=1.0, zorder=10)
 
 
@@ -310,10 +314,11 @@ def _plot_connection(
     with_arrows: bool = False,
     color: str = "red",
     lw: float = 0.3,
+    radar_size: int = 1024,
 ) -> None:
     if same_map_level(area1, area2, map_name):
-        x1, y1, _ = game_to_pixel(map_name, area1.centroid)
-        x2, y2, _ = game_to_pixel(map_name, area2.centroid)
+        x1, y1, _ = game_to_pixel(map_name, area1.centroid, radar_size=radar_size)
+        x2, y2, _ = game_to_pixel(map_name, area2.centroid, radar_size=radar_size)
         axis.plot([x1, x2], [y1, y2], color=color, lw=lw)
 
         if with_arrows:
@@ -329,12 +334,12 @@ def _plot_connection(
         area1_at_2_z = Vector3(area1.centroid.x, area1.centroid.y, area2.centroid.z)
         area2_at_1_z = Vector3(area2.centroid.x, area2.centroid.y, area1.centroid.z)
 
-        x1, y1, _ = game_to_pixel(map_name, area1.centroid)
-        x2, y2, _ = game_to_pixel(map_name, area2_at_1_z)
+        x1, y1, _ = game_to_pixel(map_name, area1.centroid, radar_size=radar_size)
+        x2, y2, _ = game_to_pixel(map_name, area2_at_1_z, radar_size=radar_size)
         axis.plot([x1, x2], [y1, y2], color=color, lw=lw)
 
-        x1, y1, _ = game_to_pixel(map_name, area1_at_2_z)
-        x2, y2, _ = game_to_pixel(map_name, area2.centroid)
+        x1, y1, _ = game_to_pixel(map_name, area1_at_2_z, radar_size=radar_size)
+        x2, y2, _ = game_to_pixel(map_name, area2.centroid, radar_size=radar_size)
         axis.plot([x1, x2], [y1, y2], color=color, lw=lw)
 
 
@@ -345,9 +350,14 @@ def _plot_path(
     color: str = "green",
     lw: float = 0.3,
     linestyle: str = "solid",
+    *,
+    radar_size: int = 1024,
 ) -> None:
     lines = [
-        [game_to_pixel(map_name, first.centroid)[:2], game_to_pixel(map_name, second.centroid)[:2]]
+        [
+            game_to_pixel(map_name, first.centroid, radar_size=radar_size)[:2],
+            game_to_pixel(map_name, second.centroid, radar_size=radar_size)[:2],
+        ]
         for first, second in itertools.pairwise(path)
         # Skip connections that would go from one level to another
         if same_map_level(first, second, map_name)
@@ -365,16 +375,42 @@ def _plot_visibility_connection(
     *,
     color: str = "red",
     lw: float = 1.0,
+    radar_size: int = 1024,
 ) -> None:
-    _plot_tiles({0: map_nav.areas[area1.area], 1: map_nav.areas[area2.area]}, map_name, axis, color=color)
+    _plot_tiles(
+        {0: map_nav.areas[area1.area], 1: map_nav.areas[area2.area]},
+        map_name,
+        axis,
+        color=color,
+        radar_size=radar_size,
+    )
     _plot_connection(
-        map_nav.areas[area1.area], map_nav.areas[area2.area], map_name, axis, with_arrows=False, color=color, lw=lw
+        map_nav.areas[area1.area],
+        map_nav.areas[area2.area],
+        map_name,
+        axis,
+        with_arrows=False,
+        color=color,
+        lw=lw,
+        radar_size=radar_size,
     )
     _plot_path(
-        [map_nav.areas[path_id] for path_id in area1.path], axis, map_name, color=color, linestyle="dashed", lw=lw
+        [map_nav.areas[path_id] for path_id in area1.path],
+        axis,
+        map_name,
+        color=color,
+        linestyle="dashed",
+        lw=lw,
+        radar_size=radar_size,
     )
     _plot_path(
-        [map_nav.areas[path_id] for path_id in area2.path], axis, map_name, color=color, linestyle="dashed", lw=lw
+        [map_nav.areas[path_id] for path_id in area2.path],
+        axis,
+        map_name,
+        color=color,
+        linestyle="dashed",
+        lw=lw,
+        radar_size=radar_size,
     )
 
 
@@ -471,13 +507,14 @@ def plot_spread_from_input(map_name: str, style: MeetingStyle) -> None:
     gif_dir.mkdir(exist_ok=True, parents=True)
 
     # Create the base plot with the radar image and yellow outlines for all areas.
-    fig, axis = plot_map(map_name)
+    fig, axis, radar_size = plot_map(map_name)
     fig.set_size_inches(19.2, 21.6)
     _plot_tiles(
         nav.areas,
         map_name=map_name,
         axis=axis,
         color="yellow",
+        radar_size=radar_size,
     )
 
     # complex_maps and n_grouping have to be kept in sync with the rust code.
@@ -485,6 +522,7 @@ def plot_spread_from_input(map_name: str, style: MeetingStyle) -> None:
         "ar_shoots",
         "ar_baggage",
         "ar_pool_day",
+        "de_grail",
         "de_palais",
         "de_vertigo",
         "de_whistle",
@@ -515,12 +553,14 @@ def plot_spread_from_input(map_name: str, style: MeetingStyle) -> None:
             color="black",
             zorder=2,
             linewidth=0.2,
+            radar_size=radar_size,
         )
         _plot_tiles(
             {area_id: nav.areas[area_id] for area_id in (marked_areas_ct | marked_areas_t)},
             map_name=map_name,
             axis=per_image_axis,
             color="olive",
+            radar_size=radar_size,
         )
         _plot_tiles(
             {
@@ -530,6 +570,7 @@ def plot_spread_from_input(map_name: str, style: MeetingStyle) -> None:
             map_name=map_name,
             axis=per_image_axis,
             color="green",
+            radar_size=radar_size,
         )
 
         _plot_tiles(
@@ -541,6 +582,7 @@ def plot_spread_from_input(map_name: str, style: MeetingStyle) -> None:
             map_name=map_name,
             axis=per_image_axis,
             color="purple",
+            radar_size=radar_size,
         )
         marked_areas_ct |= spread_point.new_marked_areas_ct
         marked_areas_t |= spread_point.new_marked_areas_t
@@ -554,6 +596,7 @@ def plot_spread_from_input(map_name: str, style: MeetingStyle) -> None:
                 per_image_axis,
                 color="red",
                 lw=1.0,
+                radar_size=radar_size,
             )
 
         image_path = image_dir / f"spread_{map_name}_{idx}.png"
