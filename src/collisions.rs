@@ -497,7 +497,7 @@ pub fn load_collision_checker(map_name: &str, style: CollisionCheckerStyle) -> C
         );
         return CollisionChecker::from_binary(&binary_path);
     }
-    println!("{tri_path:?}");
+    println!("{}", tri_path.display());
     println!(
         "Building collision checker with style {style:?} from tri: {}",
         tri_path.file_stem().unwrap().to_string_lossy()

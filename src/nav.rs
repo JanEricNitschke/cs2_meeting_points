@@ -749,9 +749,10 @@ impl Nav {
                 let time_adjusted_ladder_distance =
                     ladder_distance * (RUNNING_SPEED / LADDER_SPEED);
 
-                let time_adjusted =
-                    ((area_time_adjusted_distance + connected_area_time_adjusted_distance) / 2.0)
-                        + time_adjusted_ladder_distance;
+                let time_adjusted = f64::midpoint(
+                    area_time_adjusted_distance,
+                    connected_area_time_adjusted_distance,
+                ) + time_adjusted_ladder_distance;
 
                 graph.add_edge(*area_id, *connected_area_id, time_adjusted);
             }
@@ -1170,8 +1171,8 @@ fn create_new_nav_areas(
         let cell_min_y = (i as f64).mul_add(cell_height, min_y);
         let cell_max_x = cell_min_x + cell_width;
         let cell_max_y = cell_min_y + cell_height;
-        let center_x = (cell_min_x + cell_max_x) / 2.0;
-        let center_y = (cell_min_y + cell_max_y) / 2.0;
+        let center_x = f64::midpoint(cell_min_x, cell_max_x);
+        let center_y = f64::midpoint(cell_min_y, cell_max_y);
         let center_point = Point::new(center_x, center_y);
 
         let cell_poly = Polygon::new(
