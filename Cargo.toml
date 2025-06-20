@@ -30,8 +30,8 @@ serde_json  = "1.0.140"
 simple-tqdm = { version = "0.2.0", features = ["rayon"] }
 rustc-hash  = "2.1.1"
 sha2        = "0.10.9"
-clap        = { version = "4.5.39", features = ["derive"] }
-pyo3        = { version = "0.25.0", features = ["extension-module"] }
+clap        = { version = "4.5.40", features = ["derive"] }
+pyo3        = { version = "0.25.1", features = ["extension-module"] }
 byteorder   = "1.5.0"
 
 [target.'cfg(all(not(target_env = "msvc"), not(target_arch = "wasm32")))'.dependencies]
