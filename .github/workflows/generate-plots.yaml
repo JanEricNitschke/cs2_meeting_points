@@ -19,6 +19,12 @@ jobs:
     steps:
       - name: Checkout this repo
         uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /*
+            !/spread_gifs/
+            !/spread_images/
+          sparse-checkout-cone-mode: false
       - name: Set Swap Space
         uses: pierotofy/set-swap-space@master
         with:
