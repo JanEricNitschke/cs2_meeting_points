@@ -9,7 +9,7 @@ on:
 
 env:
   PYTHON_VERSION: 3.13
-  SOURCE2_VIEWER_URL: https://github.com/ValveResourceFormat/ValveResourceFormat/releases/download/11.1/cli-windows-x64.zip
+  SOURCE2_VIEWER_URL: https://github.com/ValveResourceFormat/ValveResourceFormat/releases/download/13.0/cli-windows-x64.zip
   CS2_APP_ID: 730
   CARGO_TERM_COLOR: always
 
@@ -183,54 +183,11 @@ jobs:
           git pull --rebase origin main
           git push
 
-  update-webpage:
-    needs: update-last-changed
-    runs-on: ubuntu-latest
-    # Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
-    # However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
-    concurrency:
-      group: "pages"
-      cancel-in-progress: false
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          lfs: true
-
-      - name: Download JSON artifacts
-        uses: actions/download-artifact@v4
-        with:
-          pattern: webpage-data-*
-          merge-multiple: true
-          path: webpage_data
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v6
-      - name: Set up Python
-        run: |
-          ls -l --block-size=M .
-          ls -l --block-size=M webpage_data
-          uv python install ${{ env.PYTHON_VERSION }}
-      - name: Merge JSON and update index.html
-        run: |
-          uv run -q --no-project scripts/update_webpage_data.py
-
-      - name: Commit regenerated files
-        run: |
-          git config --global user.name 'Jan-Eric Nitschke'
-          git config --global user.email 'JanEricNitschke@users.noreply.github.com'
-          git add index.html
-          git commit -am "Updating index.html"
-          git pull --rebase origin main
-          git push
-
-
-
   deploy:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    needs: update-webpage
+    needs: update-last-changed
     runs-on: ubuntu-latest
     # Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
     # However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
