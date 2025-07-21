@@ -34,6 +34,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: main
+          sparse-checkout: |
+            /*
+            !/spread_gifs/
+            !/spread_images/
+          sparse-checkout-cone-mode: false
       - name: Checkout awpy
         uses: actions/checkout@v4
         with:
@@ -167,6 +172,12 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /*
+            !/spread_gifs/
+            !/spread_images/
+          sparse-checkout-cone-mode: false
 
       - name: Retrieve hash-artifacts
         uses: actions/download-artifact@v4

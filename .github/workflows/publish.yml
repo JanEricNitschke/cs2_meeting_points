@@ -22,6 +22,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /*
+            !/spread_gifs/
+            !/spread_images/
+          sparse-checkout-cone-mode: false
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
@@ -50,6 +56,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /*
+            !/spread_gifs/
+            !/spread_images/
+          sparse-checkout-cone-mode: false
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -83,7 +95,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
+        with:
+          sparse-checkout: |
+            /*
+            !/spread_gifs/
+            !/spread_images/
+          sparse-checkout-cone-mode: false
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -122,6 +139,12 @@ jobs:
             target: ppc64le
     steps:
       - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /*
+            !/spread_gifs/
+            !/spread_images/
+          sparse-checkout-cone-mode: false
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
@@ -156,6 +179,12 @@ jobs:
             target: armv7
     steps:
       - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /*
+            !/spread_gifs/
+            !/spread_images/
+          sparse-checkout-cone-mode: false
       - uses: actions/setup-python@v5
         with:
           python-version: 3.x
@@ -186,6 +215,12 @@ jobs:
             target: x86
     steps:
       - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /*
+            !/spread_gifs/
+            !/spread_images/
+          sparse-checkout-cone-mode: false
       - uses: actions/setup-python@v5
         with:
           python-version: 3.x
@@ -216,6 +251,12 @@ jobs:
             target: aarch64
     steps:
       - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /*
+            !/spread_gifs/
+            !/spread_images/
+          sparse-checkout-cone-mode: false
       - uses: actions/setup-python@v5
         with:
           python-version: 3.x
@@ -244,6 +285,12 @@ jobs:
             target: wasm32-unknown-emscripten
     steps:
       - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            /*
+            !/spread_gifs/
+            !/spread_images/
+          sparse-checkout-cone-mode: false
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
