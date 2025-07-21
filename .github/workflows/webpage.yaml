@@ -9,7 +9,7 @@ on:
 
 env:
   PYTHON_VERSION: 3.13
-  SOURCE2_VIEWER_URL: https://github.com/ValveResourceFormat/ValveResourceFormat/releases/download/13.0/cli-windows-x64.zip
+  SOURCE2_VIEWER_URL: https://nightly.link/ValveResourceFormat/ValveResourceFormat/workflows/build/master/cli-windows-x64.zip
   CS2_APP_ID: 730
   CARGO_TERM_COLOR: always
 
