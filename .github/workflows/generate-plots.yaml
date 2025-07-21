@@ -79,12 +79,6 @@ jobs:
 
       - name: Generate GIF
         run: ./scripts/generate_gif.sh "${{ inputs.map-name }}"
-      - name: Upload map files
-        uses: actions/upload-artifact@v4
-        with:
-          name: webpage-data-${{ inputs.map-name }}
-          path: |
-            webpage_data/*.json
 
       - name: Retrieve hash-artifacts
         uses: actions/download-artifact@v4
@@ -109,18 +103,23 @@ jobs:
           # Stash any local changes to keep the working directory clean
           git stash
 
-          # Pull the latest changes with rebase
-          git pull --rebase origin main
-
-          # Retry logic for pushing to the remote
           for i in {1..5}; do
-            # Try pushing changes to the remote
-            git push origin main && break
+            # --- Apply and commit data update
+            uv run -q --no-project scripts/update_webpage_data.py
+            git add index.html
+            git commit -am "Updating index.html for ${{ inputs.map-name }}"
+            git add .
+            git stash
 
-            # If the push fails, it may be due to new commits on the remote. So retry after a delay
-            echo "Push failed. Retrying..."
-            sleep 5
-
-            # After retry, attempt to pull again to sync with the latest remote changes
-            git pull --rebase origin main
+            # --- Try to push
+            if git push origin main; then
+              echo "Pushed successfully!"
+              break
+            else
+              echo "Push failed, retrying after rerunning web data update"
+              git reset --hard HEAD~1  # Undo previous commit
+              git pull --rebase origin main
+              # Now loop and retry (rerun script, add, commit, etc.)
+              sleep 5
+            fi
           done
