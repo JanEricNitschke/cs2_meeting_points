@@ -111,13 +111,20 @@ jobs:
           git restore hashes/ scripts/
 
           for i in {1..5}; do
+            second_commit_made=false
+
             git status
             # --- Apply and commit data update
             ls -l --block-size=M .
             ls -l --block-size=M webpage_data
             uv run -q --no-project scripts/update_webpage_data.py
+
             git add index.html
-            git commit -m "Updating index.html for ${{ inputs.map-name }}" || echo "No changes to commit"
+            if git commit -m "Updating index.html for ${{ inputs.map-name }}"; then
+              second_commit_made=true
+            else
+              echo "No changes to commit for index.html"
+            fi
 
             # --- Try to push
             if git push origin main; then
@@ -125,7 +132,11 @@ jobs:
               break
             else
               echo "Push failed, retrying after rerunning web data update"
-              git reset --hard HEAD~1  # Undo previous commit
+              if $second_commit_made; then
+                git reset --hard HEAD~1  # Undo second commit only
+              else
+                echo "No second commit to reset"
+              fi
               git pull --rebase origin main
               # Now loop and retry (rerun script, add, commit, etc.)
               sleep 5
