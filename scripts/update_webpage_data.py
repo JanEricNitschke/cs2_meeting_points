@@ -19,6 +19,7 @@ def merge_json_files(directory: pathlib.Path) -> GalleryData:
     merged_data: GalleryData = {}
 
     for file in directory.glob("*.json"):
+        print(f"Merging file: {file}")
         with file.open("r", encoding="utf-8") as f:
             data: GalleryData = json.load(f)
             merged_data.update(data)
@@ -40,6 +41,7 @@ def update_index_html(index_file: pathlib.Path, json_data: GalleryData) -> None:
     else:
         # Case 2: Extract existing JSON and update it
         match = re.search(r"const galleryData = (\{.*\});", content, re.DOTALL)
+        print(f"Match: {match}")
         if match:
             existing_json: GalleryData = json.loads(match.group(1))
             existing_json.update(json_data)

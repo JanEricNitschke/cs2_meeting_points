@@ -84,7 +84,10 @@ jobs:
         run: chmod +x scripts/generate_gif.sh
 
       - name: Generate GIF
-        run: ./scripts/generate_gif.sh "${{ inputs.map-name }}"
+        run: |
+          ./scripts/generate_gif.sh "${{ inputs.map-name }}"
+          ls -l --block-size=M .
+          ls -l --block-size=M webpage_data
 
       - name: Retrieve hash-artifacts
         uses: actions/download-artifact@v4
@@ -105,17 +108,16 @@ jobs:
           git config --global user.email 'JanEricNitschke@users.noreply.github.com'
           git add spread_images/ spread_gifs/ hashes/${{ inputs.map-name }}.txt
           git commit -m "Updating map images for ${{ inputs.map-name }}"
-          git add .
-          # Stash any local changes to keep the working directory clean
-          git stash
+          git restore hashes/ scripts/
 
           for i in {1..5}; do
+            git status
             # --- Apply and commit data update
+            ls -l --block-size=M .
+            ls -l --block-size=M webpage_data
             uv run -q --no-project scripts/update_webpage_data.py
             git add index.html
-            git commit -am "Updating index.html for ${{ inputs.map-name }}"
-            git add .
-            git stash
+            git commit -m "Updating index.html for ${{ inputs.map-name }}" || echo "No changes to commit"
 
             # --- Try to push
             if git push origin main; then

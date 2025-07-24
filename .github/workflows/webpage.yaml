@@ -190,7 +190,7 @@ jobs:
           git config --global user.name 'Jan-Eric Nitschke'
           git config --global user.email 'JanEricNitschke@users.noreply.github.com'
           git add scripts/last_run_time.txt
-          git commit -am "Updating last run time"
+          git commit -m "Updating last run time"
           git pull --rebase origin main
           git push
 
