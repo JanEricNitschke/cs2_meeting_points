@@ -102,43 +102,52 @@ jobs:
           path: |
             spread_gifs/
 
-      - name: Commit regenerated files
+      - name: Commit regenerated files (with retry)
         run: |
-          git config --global user.name 'Jan-Eric Nitschke'
+          git config --global user.name  'Jan-Eric Nitschke'
           git config --global user.email 'JanEricNitschke@users.noreply.github.com'
-          git add spread_images/ spread_gifs/ hashes/${{ inputs.map-name }}.txt
-          git commit -m "Updating map images for ${{ inputs.map-name }}"
-          git restore hashes/ scripts/
 
           for i in {1..5}; do
-            second_commit_made=false
+            echo "=== attempt $i ==="
 
-            git status
-            # --- Apply and commit data update
-            ls -l --block-size=M .
-            ls -l --block-size=M webpage_data
+            # ------------------------------------------------------------------
+            # (re)generate everything that depends on the current repository state
             uv run -q --no-project scripts/update_webpage_data.py
 
-            git add index.html
-            if git commit -m "Updating index.html for ${{ inputs.map-name }}"; then
-              second_commit_made=true
-            else
-              echo "No changes to commit for index.html"
+            # ------------------------------------------------------------------
+            # stage *all* artefacts in one go
+            git add \
+              spread_images/ \
+              spread_gifs/ \
+              hashes/${{ inputs.map-name }}.txt \
+              index.html
+            git restore hashes/ scripts/
+
+
+            # nothing changed? -> we are done
+            if git diff --cached --quiet; then
+              echo "No changes - done"
+              exit 0
             fi
 
-            # --- Try to push
-            if git push origin main; then
-              echo "Pushed successfully!"
-              break
-            else
-              echo "Push failed, retrying after rerunning web data update"
-              if $second_commit_made; then
-                git reset --hard HEAD~1  # Undo second commit only
-              else
-                echo "No second commit to reset"
-              fi
-              git pull --rebase origin main
-              # Now loop and retry (rerun script, add, commit, etc.)
-              sleep 5
+            # create the commit
+            git commit -m "Update webpage assets for ${{ inputs.map-name }}"
+
+            # ------------------------------------------------------------------
+            # try to push
+            if git push origin HEAD:main; then
+              echo "Push succeeded"; break
             fi
+
+            echo "Push rejected - repository moved, retrying…"
+
+            # ------------------------------------------------------------------
+            # undo just-created commit *but* keep its file changes in the WD
+            git reset --mixed HEAD~1
+
+            # re-align with the new main branch
+            git pull --rebase origin main
+
+            # loop and try again after a short pause
+            sleep 5
           done
