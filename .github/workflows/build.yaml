@@ -1,4 +1,4 @@
-# This workflow will build the rust interpreter of lox
+# This workflow will build the rust project and type check the Python bindings
 
 name: build
 

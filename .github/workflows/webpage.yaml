@@ -1,4 +1,4 @@
-# This workflow will build the rust interpreter of lox
+# This workflow will update the webpage and its content
 
 name: webpage
 
@@ -28,7 +28,8 @@ jobs:
       run:
         working-directory: main/awpy
     outputs:
-      mapNamesToUpdate: ${{ steps.get-maps.outputs.mapNamesToUpdate }} # Define the output
+      updateNeeded: ${{ steps.check_time.outputs.requiresUpdate }}
+      mapNamesToUpdate: ${{ steps.get-maps.outputs.mapNamesToUpdate || '[]' }} # Define the output
     steps:
       - name: Checkout this repo
         uses: actions/checkout@v4
@@ -151,6 +152,7 @@ jobs:
 
   generate-plots:
     needs: get-map-files
+    if: needs.get-map-files.outputs.updateNeeded == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -166,10 +168,10 @@ jobs:
 
 
   update-last-changed:
-    needs: generate-plots
+    needs: [ generate-plots, get-map-files ]
+    if: needs.get-map-files.outputs.updateNeeded == 'true'
     runs-on: ubuntu-latest
     steps:
-
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -198,7 +200,8 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    needs: update-last-changed
+    needs: [ update-last-changed, get-map-files ]
+    if: needs.get-map-files.outputs.updateNeeded == 'true'
     runs-on: ubuntu-latest
     # Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
     # However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
