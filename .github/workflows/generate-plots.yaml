@@ -144,9 +144,12 @@ jobs:
             # ------------------------------------------------------------------
             # undo just-created commit *but* keep its file changes in the WD
             git reset --mixed HEAD~1
+            git restore index.html
+            git stash
 
             # re-align with the new main branch
             git pull --rebase origin main
+            git stash pop
 
             # loop and try again after a short pause
             sleep 5

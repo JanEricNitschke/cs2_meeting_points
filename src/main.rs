@@ -160,7 +160,8 @@ fn main() {
                 "de_vertigo",
                 "de_whistle",
             ];
-            let granularity = if complex_maps.contains(&map_name.as_str()) {
+            let granularity = if complex_maps.contains(&map_name.as_str()) && args.granularity > 100
+            {
                 println!("Encountered high tile map: {map_name}, reducing granularity to 100");
                 100
             } else {
