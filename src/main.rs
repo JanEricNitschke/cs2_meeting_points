@@ -39,16 +39,16 @@ fn collect_valid_maps() -> HashSet<String> {
 
     if let Ok(entries) = fs::read_dir("maps") {
         for entry in entries.flatten() {
-            if let Some(file_name) = entry.file_name().to_str() {
-                if let Some((map_name, _)) = file_name.rsplit_once('.') {
-                    // Check if all required files exist
-                    let all_exist = expected_files(map_name)
-                        .iter()
-                        .all(|path| Path::new(path).exists());
+            if let Some(file_name) = entry.file_name().to_str()
+                && let Some((map_name, _)) = file_name.rsplit_once('.')
+            {
+                // Check if all required files exist
+                let all_exist = expected_files(map_name)
+                    .iter()
+                    .all(|path| Path::new(path).exists());
 
-                    if all_exist {
-                        valid_maps.insert(map_name.to_string());
-                    }
+                if all_exist {
+                    valid_maps.insert(map_name.to_string());
                 }
             }
         }

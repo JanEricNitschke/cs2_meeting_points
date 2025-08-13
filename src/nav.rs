@@ -189,12 +189,14 @@ impl NavArea {
         );
 
         let corners =
-            if nav_mesh_version >= 31 && polygons.is_some() {
+            if let Some(polygons) = polygons
+                && nav_mesh_version >= 31
+            {
                 let polygon_index = reader
                     .read_u32::<LittleEndian>()
                     .map_err(|_| InvalidNavFileError::new_err("Failed to read polygon index."))?
                     as usize;
-                polygons.as_ref().unwrap()[polygon_index].clone()
+                polygons[polygon_index].clone()
             } else {
                 let corner_count = reader
                     .read_u32::<LittleEndian>()
