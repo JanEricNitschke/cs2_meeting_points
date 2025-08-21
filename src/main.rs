@@ -10,6 +10,7 @@ use cs2_nav::collisions::{CollisionCheckerStyle, load_collision_checker};
 use cs2_nav::nav::{Nav, get_visibility_cache, group_nav_areas, regularize_nav_areas};
 use cs2_nav::spread::{Spawns, generate_spreads, get_distances_from_spawns, save_spreads_to_json};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::{
     collections::HashSet,
@@ -35,6 +36,15 @@ fn expected_files(map_name: &str) -> Vec<String> {
 
 /// Get all unique `{map_name}` that have the required four files
 fn collect_valid_maps() -> HashSet<String> {
+    let keys: HashSet<String> =
+        serde_json::from_str::<Value>(&fs::read_to_string("maps/map-data.json").unwrap())
+            .unwrap()
+            .as_object()
+            .unwrap()
+            .keys()
+            .cloned()
+            .collect();
+
     let mut valid_maps = HashSet::new();
 
     if let Ok(entries) = fs::read_dir("maps") {
@@ -47,7 +57,7 @@ fn collect_valid_maps() -> HashSet<String> {
                     .iter()
                     .all(|path| Path::new(path).exists());
 
-                if all_exist {
+                if all_exist && keys.contains(map_name) {
                     valid_maps.insert(map_name.to_string());
                 }
             }
