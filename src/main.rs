@@ -163,6 +163,7 @@ fn main() {
             let map_name = &args.map_name;
             let complex_maps = [
                 "ar_shoots",
+                "ar_shoots_night",
                 "ar_baggage",
                 "ar_pool_day",
                 "de_grail",
