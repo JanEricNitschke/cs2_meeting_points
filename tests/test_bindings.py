@@ -111,14 +111,13 @@ def test_nav() -> None:
     assert nav.find_path(2, 1).path == []
 
 
-def test_nav_files() -> None:
+def test_nav_files(tmp_path: Path) -> None:
     nav_from_bin = Nav.from_path(DATA_PATH / "de_whistle.nav")
     nav_from_json = Nav.from_json(DATA_PATH / "de_whistle.json")
-    temp_path = DATA_PATH / "temp_de_whistle.nav"
-    nav_from_bin.to_json(temp_path)
-    nav_from_saved = Nav.from_json(temp_path)
+    temp_file = tmp_path / "temp_de_whistle.nav"
+    nav_from_bin.to_json(temp_file)
+    nav_from_saved = Nav.from_json(temp_file)
     assert nav_from_json == nav_from_bin == nav_from_saved
-    temp_path.unlink()
 
 
 def test_triangle():
