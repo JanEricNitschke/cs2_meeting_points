@@ -30,7 +30,6 @@ def merge_json_files(directory: pathlib.Path) -> GalleryData:
 def update_index_html(index_file: pathlib.Path, json_data: GalleryData) -> None:
     """Replace `__GALLERY_DATA__` in index.html with the merged JSON string."""
 
-
     with index_file.open("r", encoding="utf-8") as f:
         content = f.read()
 
