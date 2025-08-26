@@ -20,6 +20,7 @@ env:
 jobs:
   crates-io:
     runs-on: ubuntu-latest
+    if: ${{ startsWith(github.ref, 'refs/tags/') }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -46,11 +47,8 @@ jobs:
         include:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
-          - target: x86_64-apple-darwin
-            os: macos-latest
           - target: x86_64-pc-windows-msvc
             os: windows-latest
-
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -70,7 +68,7 @@ jobs:
           targets: ${{ matrix.target }}
 
       - name: Build for ${{ matrix.target }}
-        run: cargo build --release --target=${{ matrix.target }}
+        run: cargo build --locked --release --target=${{ matrix.target }}
 
       - name: Rename and move binaries
         run: |
@@ -245,8 +243,6 @@ jobs:
     strategy:
       matrix:
         platform:
-          - runner: macos-13
-            target: x86_64
           - runner: macos-14
             target: aarch64
     steps:
@@ -343,7 +339,7 @@ jobs:
   release:
     name: Release
     runs-on: ubuntu-latest
-    if: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
+    if: ${{ startsWith(github.ref, 'refs/tags/') }}
     needs: [linux, musllinux, windows, macos, sdist, emscripten, build-package, build-binaries]
     permissions:
       # Use to sign the release artifacts
@@ -353,6 +349,8 @@ jobs:
       # Used to generate artifact attestation
       attestations: write
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
       - uses: actions/download-artifact@v5
       - name: Generate artifact attestation
         uses: actions/attest-build-provenance@v2
@@ -362,7 +360,6 @@ jobs:
             binary-*/*
             crate/*
       - name: Publish to PyPI
-        if: ${{ startsWith(github.ref, 'refs/tags/') }}
         uses: PyO3/maturin-action@v1
         env:
           MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
