@@ -520,9 +520,9 @@ def plot_spread_from_input(map_name: str, style: MeetingStyle) -> None:
     # complex_maps and n_grouping have to be kept in sync with the rust code.
     complex_maps = [
         "ar_shoots",
+        "ar_shoots_night",
         "ar_baggage",
         "ar_pool_day",
-        "de_grail",
         "de_palais",
         "de_vertigo",
         "de_whistle",

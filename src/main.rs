@@ -6,10 +6,11 @@ use tikv_jemallocator::Jemalloc;
 static GLOBAL: Jemalloc = Jemalloc;
 
 use clap::{Args, Parser, Subcommand};
-use cs2_nav::collisions::{CollisionCheckerStyle, load_collision_checker};
-use cs2_nav::nav::{Nav, get_visibility_cache, group_nav_areas, regularize_nav_areas};
+use cs2_nav::collisions::{CollisionChecker, CollisionCheckerStyle, load_collision_checker};
+use cs2_nav::nav::{Nav, NavArea, get_visibility_cache, group_nav_areas, regularize_nav_areas};
 use cs2_nav::spread::{Spawns, generate_spreads, get_distances_from_spawns, save_spreads_to_json};
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use rustc_hash::FxHashMap as HashMap;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::{
@@ -147,6 +148,38 @@ struct NavAnalysisArgs {
     granularity: usize,
 }
 
+fn generate_map_areas(
+    map_name: &str,
+    old_nav: &Nav,
+    walk_checker: &CollisionChecker,
+    mut granularity: usize,
+) -> (HashMap<u32, NavArea>, usize) {
+    loop {
+        let map_areas = regularize_nav_areas(&old_nav.areas, granularity, walk_checker);
+
+        let area_count = map_areas.len();
+        let conn_count: usize = map_areas.values().map(|area| area.connections.len()).sum();
+
+        if area_count > 25_000 || conn_count > 10_000_000 {
+            let new_granularity = granularity / 2;
+            if new_granularity == granularity || new_granularity == 0 {
+                println!(
+                    "Warning: {map_name} exceeded limits (areas={area_count}, conns={conn_count}) but cannot reduce granularity further (granularity={granularity})"
+                );
+                return (map_areas, granularity);
+            }
+
+            println!(
+                "Warning: {map_name} exceeded limits (areas={area_count}, conns={conn_count}), reducing granularity to {new_granularity} and retrying"
+            );
+            granularity = new_granularity;
+            continue;
+        }
+
+        return (map_areas, granularity);
+    }
+}
+
 fn main() {
     let cli = Cli::parse();
 
@@ -161,20 +194,24 @@ fn main() {
         }
         Commands::NavAnalysis(args) => {
             let map_name = &args.map_name;
+            // These are known to be too large. No reason to waste time trying.
             let complex_maps = [
                 "ar_shoots",
                 "ar_shoots_night",
                 "ar_baggage",
                 "ar_pool_day",
-                "de_grail",
                 "de_palais",
                 "de_vertigo",
                 "de_whistle",
             ];
             let granularity = if complex_maps.contains(&map_name.as_str()) && args.granularity > 100
             {
-                println!("Encountered high tile map: {map_name}, reducing granularity to 100");
-                100
+                let new_granularity = 100;
+                println!(
+                    "Encountered high tile map: {map_name}, reducing granularity from {} to {}",
+                    args.granularity, new_granularity
+                );
+                new_granularity
             } else {
                 args.granularity
             };
@@ -183,7 +220,9 @@ fn main() {
             let old_nav = Nav::from_json(Path::new(&format!("./nav/{map_name}.json")));
             let walk_checker = load_collision_checker(map_name, CollisionCheckerStyle::Walkability);
             println!("Regularizing nav areas for {map_name}");
-            let map_areas = regularize_nav_areas(&old_nav.areas, granularity, &walk_checker);
+            let (map_areas, granularity) =
+                generate_map_areas(map_name, &old_nav, &walk_checker, granularity);
+
             let nav = Nav::new(0, 0, map_areas, true);
 
             let json_path_str = format!("./results/{map_name}.json");
@@ -201,7 +240,7 @@ fn main() {
 
             let area_to_group = group_nav_areas(
                 &nav.areas.values().collect::<Vec<_>>(),
-                n_grouping * granularity / 200,
+                n_grouping * granularity / args.granularity,
             );
 
             let fine_spreads = generate_spreads(

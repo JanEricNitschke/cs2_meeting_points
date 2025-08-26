@@ -117,11 +117,12 @@ jobs:
             # ------------------------------------------------------------------
             # stage *all* artefacts in one go
             git add \
-              spread_images/ \
-              spread_gifs/ \
+              spread_images/${{ inputs.map-name }}/ \
+              spread_gifs/${{ inputs.map-name }}/ \
               hashes/${{ inputs.map-name }}.txt \
               index.html
-            git restore hashes/ scripts/
+            git restore .
+            git clean -fd
 
 
             # nothing changed? -> we are done
@@ -145,7 +146,7 @@ jobs:
             # undo just-created commit *but* keep its file changes in the WD
             git reset --mixed HEAD~1
             git restore index.html
-            git stash
+            git stash -u
 
             # re-align with the new main branch
             git pull --rebase origin main
