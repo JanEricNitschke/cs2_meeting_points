@@ -34,6 +34,9 @@ clap        = { version = "4.5.45", features = ["derive"] }
 pyo3        = { version = "0.25.1", features = ["extension-module"] }
 byteorder   = "1.5.0"
 
+[dev-dependencies]
+tempfile = "3.8"
+
 [target.'cfg(all(not(target_env = "msvc"), not(target_arch = "wasm32")))'.dependencies]
 tikv-jemallocator = "0.6"
 
