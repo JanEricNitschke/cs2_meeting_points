@@ -34,9 +34,20 @@ jobs:
           # Run normal configuration and fail on default warnings
           cargo clippy -- -D warnings
           # Run pedantic but do not fail
-          cargo clippy -- -W clippy::all -W clippy::pedantic -W clippy::nursery -W clippy::cargo
+          cargo clippy --all-targets -- -W clippy::all -W clippy::pedantic -W clippy::nursery -W clippy::cargo
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+      - name: Set up Python
+        run: uv python install 3.13
       - name: Test
         run: cargo test --verbose
+      - name: Upload test images on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-images
+          path: spread_images/test_good/
 
   test_python_bindings:
     name: Test Python Bindings

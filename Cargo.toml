@@ -11,6 +11,7 @@ keywords = ["CS2", "visualization"]
 categories = ["visualization"]
 include = [
     "/src",
+    "/tests",
     "/Cargo.toml",
     "/pyproject.toml",
     "/README.md",
@@ -50,3 +51,6 @@ path = "src/main.rs"
 lto           = "fat"
 codegen-units = 1
 panic         = "abort"
+
+[dev-dependencies]
+image = "0.25.7"

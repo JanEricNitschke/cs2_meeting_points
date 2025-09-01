@@ -1,0 +1,11 @@
+{
+  "test_good": {
+    "pos_x": 0,
+    "pos_y": 1024,
+    "scale": 1.0,
+    "rotate": null,
+    "zoom": null,
+    "lower_level_max_units": -1000000.0,
+    "vertical_sections": {}
+  }
+}
