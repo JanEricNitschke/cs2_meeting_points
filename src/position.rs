@@ -160,15 +160,11 @@ impl Position {
     /// Check if a jump from self to other is possible
     #[must_use]
     pub fn can_jump_to(&self, other: &Self) -> bool {
-        let mut h_distance = self.distance_2d(other);
-        if h_distance <= 0.0 {
-            return true;
-        }
         // Technically the modification factor to player width should be sqrt(2)
         // But i have found that it can then make jumps that are just too far
         // So i have reduced it.
         let foothold_width_correction = PLAYER_WIDTH * 1.15;
-        h_distance = 0_f64.max(h_distance - (foothold_width_correction));
+        let h_distance = self.distance_2d(other) - foothold_width_correction;
 
         // Time to travel the horizontal distance between self and other
         // with running speed

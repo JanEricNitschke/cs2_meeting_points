@@ -1,0 +1,2801 @@
+{
+  "version": 1,
+  "sub_version": 0,
+  "is_analyzed": true,
+  "areas": {
+    "1": {
+      "area_id": 1,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        {
+          "x": 128.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        {
+          "x": 128.0,
+          "y": 128.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        2
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "2": {
+      "area_id": 2,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        {
+          "x": 128.0,
+          "y": 128.0,
+          "z": 0.0
+        },
+        {
+          "x": 0.0,
+          "y": 128.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "3": {
+      "area_id": 3,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 0.0,
+          "y": 128.0,
+          "z": 0.0
+        },
+        {
+          "x": 128.0,
+          "y": 128.0,
+          "z": 0.0
+        },
+        {
+          "x": 128.0,
+          "y": 256.0,
+          "z": 0.0
+        },
+        {
+          "x": 0.0,
+          "y": 256.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        2,
+        4,
+        18
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "4": {
+      "area_id": 4,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 0.0,
+          "y": 256.0,
+          "z": 0.0
+        },
+        {
+          "x": 128.0,
+          "y": 256.0,
+          "z": 0.0
+        },
+        {
+          "x": 128.0,
+          "y": 384.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        3,
+        19
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "5": {
+      "area_id": 5,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 0.0,
+          "y": 256.0,
+          "z": 0.0
+        },
+        {
+          "x": 128.0,
+          "y": 384.0,
+          "z": 0.0
+        },
+        {
+          "x": 0.0,
+          "y": 384.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        4
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "6": {
+      "area_id": 6,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 0.0,
+          "y": 384.0,
+          "z": 0.0
+        },
+        {
+          "x": 128.0,
+          "y": 384.0,
+          "z": 0.0
+        },
+        {
+          "x": 0.0,
+          "y": 512.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        7
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "7": {
+      "area_id": 7,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 128.0,
+          "y": 384.0,
+          "z": 0.0
+        },
+        {
+          "x": 128.0,
+          "y": 512.0,
+          "z": 0.0
+        },
+        {
+          "x": 0.0,
+          "y": 512.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        22
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "8": {
+      "area_id": 8,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 0.0,
+          "y": 512.0,
+          "z": 0.0
+        },
+        {
+          "x": 128.0,
+          "y": 512.0,
+          "z": 0.0
+        },
+        {
+          "x": 128.0,
+          "y": 640.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        23
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "9": {
+      "area_id": 9,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 0.0,
+          "y": 512.0,
+          "z": 0.0
+        },
+        {
+          "x": 128.0,
+          "y": 640.0,
+          "z": 0.0
+        },
+        {
+          "x": 0.0,
+          "y": 640.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        8
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "10": {
+      "area_id": 10,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 0.0,
+          "y": 640.0,
+          "z": 0.0
+        },
+        {
+          "x": 128.0,
+          "y": 640.0,
+          "z": 0.0
+        },
+        {
+          "x": 0.0,
+          "y": 768.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        9,
+        11
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "11": {
+      "area_id": 11,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 128.0,
+          "y": 640.0,
+          "z": 0.0
+        },
+        {
+          "x": 128.0,
+          "y": 768.0,
+          "z": 0.0
+        },
+        {
+          "x": 0.0,
+          "y": 768.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        10
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "12": {
+      "area_id": 12,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 0.0,
+          "y": 768.0,
+          "z": 0.0
+        },
+        {
+          "x": 128.0,
+          "y": 768.0,
+          "z": 0.0
+        },
+        {
+          "x": 128.0,
+          "y": 896.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "13": {
+      "area_id": 13,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 0.0,
+          "y": 768.0,
+          "z": 0.0
+        },
+        {
+          "x": 128.0,
+          "y": 896.0,
+          "z": 0.0
+        },
+        {
+          "x": 0.0,
+          "y": 896.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        14
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "14": {
+      "area_id": 14,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 0.0,
+          "y": 896.0,
+          "z": 0.0
+        },
+        {
+          "x": 128.0,
+          "y": 896.0,
+          "z": 0.0
+        },
+        {
+          "x": 128.0,
+          "y": 1024.0,
+          "z": 0.0
+        },
+        {
+          "x": 0.0,
+          "y": 1024.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "15": {
+      "area_id": 15,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 128.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        {
+          "x": 256.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        {
+          "x": 128.0,
+          "y": 128.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "16": {
+      "area_id": 16,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 256.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        {
+          "x": 256.0,
+          "y": 128.0,
+          "z": 0.0
+        },
+        {
+          "x": 128.0,
+          "y": 128.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        31
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "17": {
+      "area_id": 17,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 128.0,
+          "y": 128.0,
+          "z": 0.0
+        },
+        {
+          "x": 256.0,
+          "y": 128.0,
+          "z": 0.0
+        },
+        {
+          "x": 256.0,
+          "y": 256.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        16,
+        18,
+        32
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "18": {
+      "area_id": 18,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 128.0,
+          "y": 128.0,
+          "z": 0.0
+        },
+        {
+          "x": 256.0,
+          "y": 256.0,
+          "z": 0.0
+        },
+        {
+          "x": 128.0,
+          "y": 256.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        3,
+        17,
+        19
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "19": {
+      "area_id": 19,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 128.0,
+          "y": 256.0,
+          "z": 0.0
+        },
+        {
+          "x": 256.0,
+          "y": 256.0,
+          "z": 0.0
+        },
+        {
+          "x": 128.0,
+          "y": 384.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        18,
+        20
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "20": {
+      "area_id": 20,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 256.0,
+          "y": 256.0,
+          "z": 0.0
+        },
+        {
+          "x": 256.0,
+          "y": 384.0,
+          "z": 0.0
+        },
+        {
+          "x": 128.0,
+          "y": 384.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        19,
+        21
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "21": {
+      "area_id": 21,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 128.0,
+          "y": 384.0,
+          "z": 0.0
+        },
+        {
+          "x": 256.0,
+          "y": 384.0,
+          "z": 0.0
+        },
+        {
+          "x": 256.0,
+          "y": 512.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        35
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "22": {
+      "area_id": 22,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 128.0,
+          "y": 384.0,
+          "z": 0.0
+        },
+        {
+          "x": 256.0,
+          "y": 512.0,
+          "z": 0.0
+        },
+        {
+          "x": 128.0,
+          "y": 512.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        21,
+        23
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "23": {
+      "area_id": 23,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 128.0,
+          "y": 512.0,
+          "z": 0.0
+        },
+        {
+          "x": 256.0,
+          "y": 512.0,
+          "z": 0.0
+        },
+        {
+          "x": 128.0,
+          "y": 640.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "24": {
+      "area_id": 24,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 256.0,
+          "y": 512.0,
+          "z": 0.0
+        },
+        {
+          "x": 256.0,
+          "y": 640.0,
+          "z": 0.0
+        },
+        {
+          "x": 128.0,
+          "y": 640.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "25": {
+      "area_id": 25,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 128.0,
+          "y": 640.0,
+          "z": 0.0
+        },
+        {
+          "x": 256.0,
+          "y": 640.0,
+          "z": 0.0
+        },
+        {
+          "x": 256.0,
+          "y": 768.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        24,
+        26,
+        39
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "26": {
+      "area_id": 26,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 128.0,
+          "y": 640.0,
+          "z": 0.0
+        },
+        {
+          "x": 256.0,
+          "y": 768.0,
+          "z": 0.0
+        },
+        {
+          "x": 128.0,
+          "y": 768.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        11,
+        25
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "27": {
+      "area_id": 27,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 128.0,
+          "y": 768.0,
+          "z": 0.0
+        },
+        {
+          "x": 256.0,
+          "y": 768.0,
+          "z": 0.0
+        },
+        {
+          "x": 128.0,
+          "y": 896.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        26
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "28": {
+      "area_id": 28,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 256.0,
+          "y": 768.0,
+          "z": 0.0
+        },
+        {
+          "x": 256.0,
+          "y": 896.0,
+          "z": 0.0
+        },
+        {
+          "x": 128.0,
+          "y": 896.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        27,
+        42
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "29": {
+      "area_id": 29,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 128.0,
+          "y": 896.0,
+          "z": 0.0
+        },
+        {
+          "x": 256.0,
+          "y": 896.0,
+          "z": 0.0
+        },
+        {
+          "x": 256.0,
+          "y": 1024.0,
+          "z": 0.0
+        },
+        {
+          "x": 128.0,
+          "y": 1024.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        14,
+        28
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "30": {
+      "area_id": 30,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 256.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        {
+          "x": 384.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        {
+          "x": 384.0,
+          "y": 128.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        31
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "31": {
+      "area_id": 31,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 256.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        {
+          "x": 384.0,
+          "y": 128.0,
+          "z": 0.0
+        },
+        {
+          "x": 256.0,
+          "y": 128.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        30,
+        32
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "32": {
+      "area_id": 32,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 256.0,
+          "y": 128.0,
+          "z": 0.0
+        },
+        {
+          "x": 384.0,
+          "y": 128.0,
+          "z": 0.0
+        },
+        {
+          "x": 384.0,
+          "y": 256.0,
+          "z": 0.0
+        },
+        {
+          "x": 256.0,
+          "y": 256.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        33,
+        48
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "33": {
+      "area_id": 33,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 256.0,
+          "y": 256.0,
+          "z": 0.0
+        },
+        {
+          "x": 384.0,
+          "y": 256.0,
+          "z": 0.0
+        },
+        {
+          "x": 384.0,
+          "y": 384.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        32
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "34": {
+      "area_id": 34,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 256.0,
+          "y": 256.0,
+          "z": 0.0
+        },
+        {
+          "x": 384.0,
+          "y": 384.0,
+          "z": 0.0
+        },
+        {
+          "x": 256.0,
+          "y": 384.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        20,
+        33,
+        35
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "35": {
+      "area_id": 35,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 256.0,
+          "y": 384.0,
+          "z": 0.0
+        },
+        {
+          "x": 384.0,
+          "y": 384.0,
+          "z": 0.0
+        },
+        {
+          "x": 256.0,
+          "y": 512.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "36": {
+      "area_id": 36,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 384.0,
+          "y": 384.0,
+          "z": 0.0
+        },
+        {
+          "x": 384.0,
+          "y": 512.0,
+          "z": 0.0
+        },
+        {
+          "x": 256.0,
+          "y": 512.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        37
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "37": {
+      "area_id": 37,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 256.0,
+          "y": 512.0,
+          "z": 0.0
+        },
+        {
+          "x": 384.0,
+          "y": 512.0,
+          "z": 0.0
+        },
+        {
+          "x": 384.0,
+          "y": 640.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "38": {
+      "area_id": 38,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 256.0,
+          "y": 512.0,
+          "z": 0.0
+        },
+        {
+          "x": 384.0,
+          "y": 640.0,
+          "z": 0.0
+        },
+        {
+          "x": 256.0,
+          "y": 640.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        37
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "39": {
+      "area_id": 39,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 256.0,
+          "y": 640.0,
+          "z": 0.0
+        },
+        {
+          "x": 384.0,
+          "y": 640.0,
+          "z": 0.0
+        },
+        {
+          "x": 256.0,
+          "y": 768.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        25,
+        38,
+        40
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "40": {
+      "area_id": 40,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 384.0,
+          "y": 640.0,
+          "z": 0.0
+        },
+        {
+          "x": 384.0,
+          "y": 768.0,
+          "z": 0.0
+        },
+        {
+          "x": 256.0,
+          "y": 768.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "41": {
+      "area_id": 41,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 256.0,
+          "y": 768.0,
+          "z": 0.0
+        },
+        {
+          "x": 384.0,
+          "y": 768.0,
+          "z": 0.0
+        },
+        {
+          "x": 384.0,
+          "y": 896.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        40
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "42": {
+      "area_id": 42,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 256.0,
+          "y": 768.0,
+          "z": 0.0
+        },
+        {
+          "x": 384.0,
+          "y": 896.0,
+          "z": 0.0
+        },
+        {
+          "x": 256.0,
+          "y": 896.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        28
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "43": {
+      "area_id": 43,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 256.0,
+          "y": 896.0,
+          "z": 0.0
+        },
+        {
+          "x": 384.0,
+          "y": 896.0,
+          "z": 0.0
+        },
+        {
+          "x": 256.0,
+          "y": 1024.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        29
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "44": {
+      "area_id": 44,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 384.0,
+          "y": 896.0,
+          "z": 0.0
+        },
+        {
+          "x": 384.0,
+          "y": 1024.0,
+          "z": 0.0
+        },
+        {
+          "x": 256.0,
+          "y": 1024.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        43
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "45": {
+      "area_id": 45,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 384.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        {
+          "x": 512.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        {
+          "x": 384.0,
+          "y": 128.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "46": {
+      "area_id": 46,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 512.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        {
+          "x": 512.0,
+          "y": 128.0,
+          "z": 0.0
+        },
+        {
+          "x": 384.0,
+          "y": 128.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        52
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "47": {
+      "area_id": 47,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 384.0,
+          "y": 128.0,
+          "z": 0.0
+        },
+        {
+          "x": 512.0,
+          "y": 128.0,
+          "z": 0.0
+        },
+        {
+          "x": 512.0,
+          "y": 256.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        46,
+        48
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "48": {
+      "area_id": 48,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 384.0,
+          "y": 128.0,
+          "z": 0.0
+        },
+        {
+          "x": 512.0,
+          "y": 256.0,
+          "z": 0.0
+        },
+        {
+          "x": 384.0,
+          "y": 256.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        49
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "49": {
+      "area_id": 49,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 384.0,
+          "y": 256.0,
+          "z": 0.0
+        },
+        {
+          "x": 512.0,
+          "y": 256.0,
+          "z": 0.0
+        },
+        {
+          "x": 384.0,
+          "y": 384.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        33
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "50": {
+      "area_id": 50,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 512.0,
+          "y": 256.0,
+          "z": 0.0
+        },
+        {
+          "x": 512.0,
+          "y": 384.0,
+          "z": 0.0
+        },
+        {
+          "x": 384.0,
+          "y": 384.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        49,
+        56
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "51": {
+      "area_id": 51,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 512.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        {
+          "x": 640.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        {
+          "x": 640.0,
+          "y": 128.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        52
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "52": {
+      "area_id": 52,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 512.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        {
+          "x": 640.0,
+          "y": 128.0,
+          "z": 0.0
+        },
+        {
+          "x": 512.0,
+          "y": 128.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        51,
+        53
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "53": {
+      "area_id": 53,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 512.0,
+          "y": 128.0,
+          "z": 0.0
+        },
+        {
+          "x": 640.0,
+          "y": 128.0,
+          "z": 0.0
+        },
+        {
+          "x": 512.0,
+          "y": 256.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        52
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "54": {
+      "area_id": 54,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 640.0,
+          "y": 128.0,
+          "z": 0.0
+        },
+        {
+          "x": 640.0,
+          "y": 256.0,
+          "z": 0.0
+        },
+        {
+          "x": 512.0,
+          "y": 256.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        53,
+        55
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "55": {
+      "area_id": 55,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 512.0,
+          "y": 256.0,
+          "z": 0.0
+        },
+        {
+          "x": 640.0,
+          "y": 256.0,
+          "z": 0.0
+        },
+        {
+          "x": 640.0,
+          "y": 384.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        56,
+        61
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "56": {
+      "area_id": 56,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 512.0,
+          "y": 256.0,
+          "z": 0.0
+        },
+        {
+          "x": 640.0,
+          "y": 384.0,
+          "z": 0.0
+        },
+        {
+          "x": 512.0,
+          "y": 384.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "57": {
+      "area_id": 57,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 640.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        {
+          "x": 768.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        {
+          "x": 640.0,
+          "y": 128.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        51
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "58": {
+      "area_id": 58,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 768.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        {
+          "x": 768.0,
+          "y": 128.0,
+          "z": 0.0
+        },
+        {
+          "x": 640.0,
+          "y": 128.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        57,
+        59,
+        74
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "59": {
+      "area_id": 59,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 640.0,
+          "y": 128.0,
+          "z": 0.0
+        },
+        {
+          "x": 768.0,
+          "y": 128.0,
+          "z": 0.0
+        },
+        {
+          "x": 768.0,
+          "y": 256.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        60,
+        75
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "60": {
+      "area_id": 60,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 640.0,
+          "y": 128.0,
+          "z": 0.0
+        },
+        {
+          "x": 768.0,
+          "y": 256.0,
+          "z": 0.0
+        },
+        {
+          "x": 640.0,
+          "y": 256.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        54,
+        61
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "61": {
+      "area_id": 61,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 640.0,
+          "y": 256.0,
+          "z": 0.0
+        },
+        {
+          "x": 768.0,
+          "y": 256.0,
+          "z": 0.0
+        },
+        {
+          "x": 640.0,
+          "y": 384.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        62
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "62": {
+      "area_id": 62,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 768.0,
+          "y": 256.0,
+          "z": 0.0
+        },
+        {
+          "x": 768.0,
+          "y": 384.0,
+          "z": 0.0
+        },
+        {
+          "x": 640.0,
+          "y": 384.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        61,
+        77
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "63": {
+      "area_id": 63,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 640.0,
+          "y": 384.0,
+          "z": 0.0
+        },
+        {
+          "x": 768.0,
+          "y": 384.0,
+          "z": 0.0
+        },
+        {
+          "x": 768.0,
+          "y": 512.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        62
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "64": {
+      "area_id": 64,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 640.0,
+          "y": 384.0,
+          "z": 0.0
+        },
+        {
+          "x": 768.0,
+          "y": 512.0,
+          "z": 0.0
+        },
+        {
+          "x": 640.0,
+          "y": 512.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        63
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "65": {
+      "area_id": 65,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 640.0,
+          "y": 512.0,
+          "z": 0.0
+        },
+        {
+          "x": 768.0,
+          "y": 512.0,
+          "z": 0.0
+        },
+        {
+          "x": 640.0,
+          "y": 640.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        66
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "66": {
+      "area_id": 66,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 768.0,
+          "y": 512.0,
+          "z": 0.0
+        },
+        {
+          "x": 768.0,
+          "y": 640.0,
+          "z": 0.0
+        },
+        {
+          "x": 640.0,
+          "y": 640.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        65,
+        67,
+        81
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "67": {
+      "area_id": 67,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 640.0,
+          "y": 640.0,
+          "z": 0.0
+        },
+        {
+          "x": 768.0,
+          "y": 640.0,
+          "z": 0.0
+        },
+        {
+          "x": 768.0,
+          "y": 768.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        66
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "68": {
+      "area_id": 68,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 640.0,
+          "y": 640.0,
+          "z": 0.0
+        },
+        {
+          "x": 768.0,
+          "y": 768.0,
+          "z": 0.0
+        },
+        {
+          "x": 640.0,
+          "y": 768.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        69
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "69": {
+      "area_id": 69,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 640.0,
+          "y": 768.0,
+          "z": 0.0
+        },
+        {
+          "x": 768.0,
+          "y": 768.0,
+          "z": 0.0
+        },
+        {
+          "x": 640.0,
+          "y": 896.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        68,
+        70
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "70": {
+      "area_id": 70,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 768.0,
+          "y": 768.0,
+          "z": 0.0
+        },
+        {
+          "x": 768.0,
+          "y": 896.0,
+          "z": 0.0
+        },
+        {
+          "x": 640.0,
+          "y": 896.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        71,
+        85
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "71": {
+      "area_id": 71,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 640.0,
+          "y": 896.0,
+          "z": 0.0
+        },
+        {
+          "x": 768.0,
+          "y": 896.0,
+          "z": 0.0
+        },
+        {
+          "x": 768.0,
+          "y": 1024.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        70,
+        72,
+        86
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "72": {
+      "area_id": 72,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 640.0,
+          "y": 896.0,
+          "z": 0.0
+        },
+        {
+          "x": 768.0,
+          "y": 1024.0,
+          "z": 0.0
+        },
+        {
+          "x": 640.0,
+          "y": 1024.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        71
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "73": {
+      "area_id": 73,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 768.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        {
+          "x": 896.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        {
+          "x": 896.0,
+          "y": 128.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        88
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "74": {
+      "area_id": 74,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 768.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        {
+          "x": 896.0,
+          "y": 128.0,
+          "z": 0.0
+        },
+        {
+          "x": 768.0,
+          "y": 128.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        75
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "75": {
+      "area_id": 75,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 768.0,
+          "y": 128.0,
+          "z": 0.0
+        },
+        {
+          "x": 896.0,
+          "y": 128.0,
+          "z": 0.0
+        },
+        {
+          "x": 768.0,
+          "y": 256.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "76": {
+      "area_id": 76,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 896.0,
+          "y": 128.0,
+          "z": 0.0
+        },
+        {
+          "x": 896.0,
+          "y": 256.0,
+          "z": 0.0
+        },
+        {
+          "x": 768.0,
+          "y": 256.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        90
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "77": {
+      "area_id": 77,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 768.0,
+          "y": 256.0,
+          "z": 0.0
+        },
+        {
+          "x": 896.0,
+          "y": 256.0,
+          "z": 0.0
+        },
+        {
+          "x": 896.0,
+          "y": 384.0,
+          "z": 0.0
+        },
+        {
+          "x": 768.0,
+          "y": 384.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        62,
+        76,
+        78,
+        91
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "78": {
+      "area_id": 78,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 768.0,
+          "y": 384.0,
+          "z": 0.0
+        },
+        {
+          "x": 896.0,
+          "y": 384.0,
+          "z": 0.0
+        },
+        {
+          "x": 768.0,
+          "y": 512.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        63,
+        79
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "79": {
+      "area_id": 79,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 896.0,
+          "y": 384.0,
+          "z": 0.0
+        },
+        {
+          "x": 896.0,
+          "y": 512.0,
+          "z": 0.0
+        },
+        {
+          "x": 768.0,
+          "y": 512.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        80
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "80": {
+      "area_id": 80,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 768.0,
+          "y": 512.0,
+          "z": 0.0
+        },
+        {
+          "x": 896.0,
+          "y": 512.0,
+          "z": 0.0
+        },
+        {
+          "x": 896.0,
+          "y": 640.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        79
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "81": {
+      "area_id": 81,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 768.0,
+          "y": 512.0,
+          "z": 0.0
+        },
+        {
+          "x": 896.0,
+          "y": 640.0,
+          "z": 0.0
+        },
+        {
+          "x": 768.0,
+          "y": 640.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "82": {
+      "area_id": 82,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 768.0,
+          "y": 640.0,
+          "z": 0.0
+        },
+        {
+          "x": 896.0,
+          "y": 640.0,
+          "z": 0.0
+        },
+        {
+          "x": 768.0,
+          "y": 768.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        67,
+        81
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "83": {
+      "area_id": 83,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 896.0,
+          "y": 640.0,
+          "z": 0.0
+        },
+        {
+          "x": 896.0,
+          "y": 768.0,
+          "z": 0.0
+        },
+        {
+          "x": 768.0,
+          "y": 768.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "84": {
+      "area_id": 84,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 768.0,
+          "y": 768.0,
+          "z": 0.0
+        },
+        {
+          "x": 896.0,
+          "y": 768.0,
+          "z": 0.0
+        },
+        {
+          "x": 896.0,
+          "y": 896.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        85
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "85": {
+      "area_id": 85,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 768.0,
+          "y": 768.0,
+          "z": 0.0
+        },
+        {
+          "x": 896.0,
+          "y": 896.0,
+          "z": 0.0
+        },
+        {
+          "x": 768.0,
+          "y": 896.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "86": {
+      "area_id": 86,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 768.0,
+          "y": 896.0,
+          "z": 0.0
+        },
+        {
+          "x": 896.0,
+          "y": 896.0,
+          "z": 0.0
+        },
+        {
+          "x": 768.0,
+          "y": 1024.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        71,
+        87
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "87": {
+      "area_id": 87,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 896.0,
+          "y": 896.0,
+          "z": 0.0
+        },
+        {
+          "x": 896.0,
+          "y": 1024.0,
+          "z": 0.0
+        },
+        {
+          "x": 768.0,
+          "y": 1024.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        86
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "88": {
+      "area_id": 88,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 896.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        {
+          "x": 1024.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        {
+          "x": 896.0,
+          "y": 128.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "89": {
+      "area_id": 89,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 1024.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        {
+          "x": 1024.0,
+          "y": 128.0,
+          "z": 0.0
+        },
+        {
+          "x": 896.0,
+          "y": 128.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        88,
+        90
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "90": {
+      "area_id": 90,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 896.0,
+          "y": 128.0,
+          "z": 0.0
+        },
+        {
+          "x": 1024.0,
+          "y": 128.0,
+          "z": 0.0
+        },
+        {
+          "x": 1024.0,
+          "y": 256.0,
+          "z": 0.0
+        },
+        {
+          "x": 896.0,
+          "y": 256.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        89
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "91": {
+      "area_id": 91,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 896.0,
+          "y": 256.0,
+          "z": 0.0
+        },
+        {
+          "x": 1024.0,
+          "y": 256.0,
+          "z": 0.0
+        },
+        {
+          "x": 896.0,
+          "y": 384.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [
+        90
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "92": {
+      "area_id": 92,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 1024.0,
+          "y": 256.0,
+          "z": 0.0
+        },
+        {
+          "x": 1024.0,
+          "y": 384.0,
+          "z": 0.0
+        },
+        {
+          "x": 896.0,
+          "y": 384.0,
+          "z": 0.0
+        }
+      ],
+      "connections": [],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "93": {
+      "area_id": 93,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 896.0,
+          "y": 384.0,
+          "z": 0.0
+        },
+        {
+          "x": 1024.0,
+          "y": 384.0,
+          "z": 0.0
+        },
+        {
+          "x": 1024.0,
+          "y": 512.0,
+          "z": 30.0
+        }
+      ],
+      "connections": [
+        92
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "94": {
+      "area_id": 94,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 896.0,
+          "y": 384.0,
+          "z": 0.0
+        },
+        {
+          "x": 1024.0,
+          "y": 512.0,
+          "z": 30.0
+        },
+        {
+          "x": 896.0,
+          "y": 512.0,
+          "z": 30.0
+        }
+      ],
+      "connections": [
+        93,
+        95
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "95": {
+      "area_id": 95,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 896.0,
+          "y": 512.0,
+          "z": 30.0
+        },
+        {
+          "x": 1024.0,
+          "y": 512.0,
+          "z": 30.0
+        },
+        {
+          "x": 896.0,
+          "y": 640.0,
+          "z": 60.0
+        }
+      ],
+      "connections": [
+        96
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "96": {
+      "area_id": 96,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 1024.0,
+          "y": 512.0,
+          "z": 30.0
+        },
+        {
+          "x": 1024.0,
+          "y": 640.0,
+          "z": 60.0
+        },
+        {
+          "x": 896.0,
+          "y": 640.0,
+          "z": 60.0
+        }
+      ],
+      "connections": [
+        95
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "97": {
+      "area_id": 97,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 896.0,
+          "y": 640.0,
+          "z": 60.0
+        },
+        {
+          "x": 1024.0,
+          "y": 640.0,
+          "z": 60.0
+        },
+        {
+          "x": 1024.0,
+          "y": 768.0,
+          "z": 90.0
+        }
+      ],
+      "connections": [
+        96,
+        98
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "98": {
+      "area_id": 98,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 896.0,
+          "y": 640.0,
+          "z": 60.0
+        },
+        {
+          "x": 1024.0,
+          "y": 768.0,
+          "z": 90.0
+        },
+        {
+          "x": 896.0,
+          "y": 768.0,
+          "z": 90.0
+        }
+      ],
+      "connections": [],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "99": {
+      "area_id": 99,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 896.0,
+          "y": 768.0,
+          "z": 90.0
+        },
+        {
+          "x": 1024.0,
+          "y": 768.0,
+          "z": 90.0
+        },
+        {
+          "x": 896.0,
+          "y": 896.0,
+          "z": 120.0
+        }
+      ],
+      "connections": [
+        98,
+        100
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "100": {
+      "area_id": 100,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 1024.0,
+          "y": 768.0,
+          "z": 90.0
+        },
+        {
+          "x": 1024.0,
+          "y": 896.0,
+          "z": 120.0
+        },
+        {
+          "x": 896.0,
+          "y": 896.0,
+          "z": 120.0
+        }
+      ],
+      "connections": [
+        99
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "101": {
+      "area_id": 101,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 896.0,
+          "y": 896.0,
+          "z": 120.0
+        },
+        {
+          "x": 1024.0,
+          "y": 896.0,
+          "z": 120.0
+        },
+        {
+          "x": 1024.0,
+          "y": 1024.0,
+          "z": 150.0
+        }
+      ],
+      "connections": [],
+      "ladders_above": [],
+      "ladders_below": []
+    },
+    "102": {
+      "area_id": 102,
+      "hull_index": 0,
+      "dynamic_attribute_flags": 0,
+      "corners": [
+        {
+          "x": 896.0,
+          "y": 896.0,
+          "z": 120.0
+        },
+        {
+          "x": 1024.0,
+          "y": 1024.0,
+          "z": 150.0
+        },
+        {
+          "x": 896.0,
+          "y": 1024.0,
+          "z": 150.0
+        }
+      ],
+      "connections": [
+        101
+      ],
+      "ladders_above": [],
+      "ladders_below": []
+    }
+  }
+}

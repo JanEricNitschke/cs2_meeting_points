@@ -183,8 +183,6 @@ fn generate_map_areas(
 fn main() {
     let cli = Cli::parse();
 
-    let n_grouping = 10;
-
     match cli.command {
         Commands::ProcessMaps => {
             let valid_maps = collect_valid_maps();
@@ -193,6 +191,7 @@ fn main() {
             print!("{maps_to_update:?}");
         }
         Commands::NavAnalysis(args) => {
+            let n_grouping = 1.max(10 * args.granularity / 200);
             let map_name = &args.map_name;
             // These are known to be too large. No reason to waste time trying.
             let complex_maps = [
