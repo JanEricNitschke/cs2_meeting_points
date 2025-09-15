@@ -2,6 +2,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
+
 from cs2_nav import (
     DynamicAttributeFlags,
     InvalidNavFileError,
@@ -28,6 +29,8 @@ def test_position() -> None:
     assert (pos1 - pos2).y == -3
     assert (pos1 * 2) == Position(2, 4, 6)
     assert (pos1 / 2) == Position(0.5, 1, 1.5)
+    assert (pos1 * 2.0) == Position(2.0, 4.0, 6.0)
+    assert (pos1 / 2.0) == Position(0.5, 1, 1.5)
 
     with pytest.raises(ZeroDivisionError, match="Division by zero"):
         _ = pos1 / 0.0
