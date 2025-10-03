@@ -524,6 +524,7 @@ def plot_spread_from_input(map_name: str, style: MeetingStyle) -> None:
         "ar_baggage",
         "ar_pool_day",
         "de_palais",
+        "de_rooftop",
         "de_vertigo",
         "de_whistle",
     ]
