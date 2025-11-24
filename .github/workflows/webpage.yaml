@@ -32,7 +32,7 @@ jobs:
       mapNamesToUpdate: ${{ steps.get-maps.outputs.mapNamesToUpdate || '[]' }} # Define the output
     steps:
       - name: Checkout this repo
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           path: main
           sparse-checkout: |
@@ -41,7 +41,7 @@ jobs:
             !/spread_images/
           sparse-checkout-cone-mode: false
       - name: Checkout awpy
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           repository: JanEricNitschke/csgo
           path: main/awpy
@@ -173,7 +173,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           sparse-checkout: |
             /*
@@ -210,7 +210,7 @@ jobs:
       cancel-in-progress: false
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
