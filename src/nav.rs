@@ -802,7 +802,7 @@ impl Nav {
         ) else {
             return PathResult {
                 path: Vec::new(),
-                distance: f64::MAX,
+                distance: f64::INFINITY,
             };
         };
 

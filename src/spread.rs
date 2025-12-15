@@ -125,7 +125,7 @@ pub fn get_distances_from_spawns(map_areas: &Nav, spawns: &Spawns) -> SpawnDista
                 })
                 .min_by(|a, b| a.distance.partial_cmp(&b.distance).unwrap())
                 .unwrap_or(PathResult {
-                    distance: f64::MAX,
+                    distance: f64::INFINITY,
                     path: Vec::new(),
                 });
 
@@ -137,7 +137,7 @@ pub fn get_distances_from_spawns(map_areas: &Nav, spawns: &Spawns) -> SpawnDista
                 })
                 .min_by(|a, b| a.distance.partial_cmp(&b.distance).unwrap())
                 .unwrap_or(PathResult {
-                    distance: f64::MAX,
+                    distance: f64::INFINITY,
                     path: Vec::new(),
                 });
 
@@ -260,7 +260,7 @@ pub fn generate_spreads(
     let n_iterations = spawn_distances_ct
         .iter()
         .chain(spawn_distances_t.iter())
-        .filter(|a| a.distance < f64::MAX)
+        .filter(|a| a.distance < f64::INFINITY)
         .count();
 
     let tqdm_config = Config::new()
@@ -309,7 +309,7 @@ pub fn generate_spreads(
             };
 
         // Spot when only unreachable areas are left.
-        if current_area.distance == f64::MAX {
+        if current_area.distance == f64::INFINITY {
             result.push(SpreadResult {
                 new_marked_areas_ct: mem::take(&mut new_marked_areas_ct),
                 new_marked_areas_t: mem::take(&mut new_marked_areas_t),
