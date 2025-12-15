@@ -34,7 +34,7 @@ jobs:
       - name: Build
         run: cargo build --release
       - name: Retrieve map artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: map-artifacts
       - name: Generate plot input
@@ -42,7 +42,7 @@ jobs:
           ls -l --block-size=M .
           RUSTFLAGS='-C target-cpu=native' cargo run --release -- nav-analysis ${{ inputs.map-name }} 2>&1
       - name: Upload results
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: results-${{ inputs.map-name }}
           path: results/*.json
@@ -60,11 +60,11 @@ jobs:
         with:
           swap-size-gb: 16
       - name: Retrieve map artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: map-artifacts
       - name: Retrieve results
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: results-${{ inputs.map-name }}
           path: results
@@ -90,13 +90,13 @@ jobs:
           ls -l --block-size=M webpage_data
 
       - name: Retrieve hash-artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: hash-artifacts
           path: hashes
 
       - name: Upload gif
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: gif-${{ inputs.map-name }}
           path: |
