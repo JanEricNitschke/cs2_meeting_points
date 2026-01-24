@@ -1625,7 +1625,7 @@ pub fn group_nav_areas(nav_areas: &[&NavArea], group_size: usize) -> HashMap<u32
                 }
             }
 
-            // If it can not be added to any existing group and it created a new
+            // If it can not be added to any existing group, it creates a new
             if !found {
                 z_groups.push(vec![area]);
             }
