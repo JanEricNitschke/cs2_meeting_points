@@ -200,6 +200,7 @@ fn main() {
                 "ar_baggage",
                 "ar_pool_day",
                 "de_palais",
+                "de_poseidon",
                 "de_rooftop",
                 "de_vertigo",
                 "de_whistle",

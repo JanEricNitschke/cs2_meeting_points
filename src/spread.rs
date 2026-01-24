@@ -215,7 +215,7 @@ fn assert_sorted(spawn_distances: &[SpawnDistance]) {
 /// We keep track of all of the processed (reachable) areas for both sides.
 ///
 /// Then we try to check which reachable areas of the other side can be seen from the new area.
-/// We only consider that have not already been spotted. We determine this "spottednes" by whether it or its last path step
+/// We only consider areas that have not already been spotted. We determine this "spottednes" by whether it or its last path step
 /// are in a group that has been spotted. We only consider the parent and not the full path to not mark areas
 /// that have separated from that group before it was spotted.
 /// For example if you could have a look at the spawn of the other side after 2 seconds, then you would not have seen
