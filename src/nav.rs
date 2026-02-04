@@ -37,7 +37,7 @@ use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 
 // --- DynamicAttributeFlags ---
-#[pyclass(eq, module = "cs2_nav")]
+#[pyclass(eq, module = "cs2_nav", from_py_object)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
 pub struct DynamicAttributeFlags(i64);
 
@@ -80,7 +80,7 @@ impl NavMeshConnection {
     }
 }
 
-#[pyclass(eq, str, module = "cs2_nav")]
+#[pyclass(eq, str, module = "cs2_nav", from_py_object)]
 /// A navigation area in the map.
 #[derive(Debug, Clone, Serialize)]
 pub struct NavArea {
@@ -448,7 +448,7 @@ impl From<NewNavArea> for NavArea {
 /// Result of a pathfinding operation.
 ///
 /// Contains the path as a list of `NavArea` objects and the total distance.
-#[pyclass(eq, module = "cs2_nav")]
+#[pyclass(eq, module = "cs2_nav", skip_from_py_object)]
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct PathResult {
     #[pyo3(get, set)]
@@ -485,7 +485,7 @@ struct NavSerializationHelperStruct {
     pub areas: HashMap<u32, NavArea>,
 }
 
-#[pyclass(eq, str, module = "cs2_nav")]
+#[pyclass(eq, str, module = "cs2_nav", skip_from_py_object)]
 #[derive(Debug, Clone)]
 pub struct Nav {
     #[pyo3(get)]
