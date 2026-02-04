@@ -5,7 +5,7 @@ use pyo3::{FromPyObject, Py, PyRef, PyRefMut, PyResult, pyclass, pyfunction, pym
 use serde::{Deserialize, Serialize};
 use std::ops::{Add, Div, Mul, Sub};
 
-#[pyclass(eq, module = "cs2_nav")]
+#[pyclass(eq, module = "cs2_nav", from_py_object)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Position {
     #[pyo3(get, set)]
