@@ -34,6 +34,7 @@ sha2        = "0.11.0"
 clap        = { version = "4.6.0", features = ["derive"] }
 pyo3        = { version = "0.28.2", features = ["extension-module"] }
 byteorder   = "1.5.0"
+hex = "0.4.3"
 
 [target.'cfg(all(not(target_env = "msvc"), not(target_arch = "wasm32")))'.dependencies]
 tikv-jemallocator = "0.6"
