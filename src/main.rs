@@ -74,20 +74,15 @@ fn compute_hash(map_name: &str) -> Option<String> {
 
     for file in expected_files(map_name) {
         let path = Path::new(&file);
-        if let Ok(mut file) = File::open(path) {
-            let mut contents = Vec::new();
-            if file.read_to_end(&mut contents).is_ok() {
-                hasher.update(&contents);
-            } else {
-                return None;
-            }
-        } else {
-            return None;
-        }
+        let mut file = File::open(path).ok()?;
+
+        let mut contents = Vec::new();
+        file.read_to_end(&mut contents).ok()?;
+
+        hasher.update(&contents);
     }
 
-    let result = hasher.finalize();
-    Some(format!("{result:x}"))
+    Some(hex::encode(hasher.finalize()))
 }
 
 /// Load the existing hash from `hashes/{map_name}.txt`
