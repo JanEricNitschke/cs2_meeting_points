@@ -297,7 +297,7 @@ jobs:
           echo EMSCRIPTEN_VERSION=$(pyodide config get emscripten_version) >> $GITHUB_ENV
           echo PYTHON_VERSION=$(pyodide config get python_version | cut -d '.' -f 1-2) >> $GITHUB_ENV
           pip uninstall -y pyodide-build
-      - uses: mymindstorm/setup-emsdk@v15
+      - uses: mymindstorm/setup-emsdk@v16
         with:
           version: ${{ env.EMSCRIPTEN_VERSION }}
           actions-cache-folder: emsdk-cache
@@ -367,7 +367,7 @@ jobs:
           command: upload
           args: --non-interactive --skip-existing wheels-*/*
       - name: Upload to GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.ref_name }}
           name: Release ${{ env.VERSION }}
