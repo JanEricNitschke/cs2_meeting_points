@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout this repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           sparse-checkout: |
             /*
@@ -26,15 +26,15 @@ jobs:
             !/spread_images/
           sparse-checkout-cone-mode: false
       - name: Set Swap Space
-        uses: pierotofy/set-swap-space@master
+        uses: pierotofy/set-swap-space@fc79b3f67fa8a838184ce84a674ca12238d2c761  # master
         with:
           swap-size-gb: 16
       - name: Set up Rust
-        uses: actions-rust-lang/setup-rust-toolchain@v1
+        uses: actions-rust-lang/setup-rust-toolchain@150fca883cd4034361b621bd4e6a9d34e5143606 # v1.15.4
       - name: Build
         run: cargo build --release
       - name: Retrieve map artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: map-artifacts
       - name: Generate plot input
@@ -42,7 +42,7 @@ jobs:
           ls -l --block-size=M .
           RUSTFLAGS='-C target-cpu=native' cargo run --release -- nav-analysis ${{ inputs.map-name }} 2>&1
       - name: Upload results
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: results-${{ inputs.map-name }}
           path: results/*.json
@@ -54,22 +54,22 @@ jobs:
       contents: write
     steps:
       - name: Checkout this repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Set Swap Space
-        uses: pierotofy/set-swap-space@master
+        uses: pierotofy/set-swap-space@fc79b3f67fa8a838184ce84a674ca12238d2c761  # master
         with:
           swap-size-gb: 16
       - name: Retrieve map artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: map-artifacts
       - name: Retrieve results
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: results-${{ inputs.map-name }}
           path: results
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@cec208311dfd045dd5311c1add060b2062131d57 # v8.0.0
       - name: Set up Python
         run: uv python install ${{ inputs.python-version }}
       - name: Generate plots
@@ -77,7 +77,7 @@ jobs:
           ls -l --block-size=M
           ls -l --block-size=M results
           uv run -q --no-project --with tqdm --with matplotlib --with numpy --with pillow scripts/plot_spread.py ${{ inputs.map-name }}
-      - uses: FedericoCarboni/setup-ffmpeg@v3.1
+      - uses: FedericoCarboni/setup-ffmpeg@37062fbf7149fc5578d6c57e08aed62458b375d6 # v3.1
         id: setup-ffmpeg
 
       - name: Make script executable
@@ -90,13 +90,13 @@ jobs:
           ls -l --block-size=M webpage_data
 
       - name: Retrieve hash-artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: hash-artifacts
           path: hashes
 
       - name: Upload gif
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: gif-${{ inputs.map-name }}
           path: |

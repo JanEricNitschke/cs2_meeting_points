@@ -32,7 +32,7 @@ jobs:
       mapNamesToUpdate: ${{ steps.get-maps.outputs.mapNamesToUpdate || '[]' }} # Define the output
     steps:
       - name: Checkout this repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           path: main
           sparse-checkout: |
@@ -41,14 +41,14 @@ jobs:
             !/spread_images/
           sparse-checkout-cone-mode: false
       - name: Checkout awpy
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           repository: JanEricNitschke/csgo
           path: main/awpy
           ref: spread-ci-branch
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@cec208311dfd045dd5311c1add060b2062131d57 # v8.0.0
 
       - name: Set up Python
         run: |
@@ -61,7 +61,7 @@ jobs:
           uv tool install .
 
       - name: Setup SteamCMD
-        uses: CyberAndrii/setup-steamcmd@v1
+        uses: andriivitiv/setup-steamcmd@afc45f145b95c175c3a3862d3ca84756537d48e8 # v1.3.0
 
       - name: Check if there is a need to update.
         id: check_time
@@ -126,7 +126,7 @@ jobs:
 
       - name: Upload map files
         if: steps.check_time.outputs.requiresUpdate == 'true'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: map-artifacts
           path: |
@@ -137,14 +137,14 @@ jobs:
 
       - name: Upload map hashes
         if: steps.check_time.outputs.requiresUpdate == 'true'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: hash-artifacts
           path: main/hashes/*.txt
 
       - name: Upload last updated time
         if: steps.check_time.outputs.requiresUpdate == 'true'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: time-artifact
           path: main/scripts/last_run_time.txt
@@ -173,7 +173,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           sparse-checkout: |
             /*
@@ -182,7 +182,7 @@ jobs:
           sparse-checkout-cone-mode: false
 
       - name: Retrieve hash-artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: time-artifact
           path: scripts
@@ -210,15 +210,15 @@ jobs:
       cancel-in-progress: false
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Setup Pages
-        uses: actions/configure-pages@v6
+        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0@v6
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v5
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           # Upload entire repository
           path: '.'
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v5
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0

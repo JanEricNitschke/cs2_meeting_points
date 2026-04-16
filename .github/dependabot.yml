@@ -10,15 +10,24 @@ updates:
     schedule:
       interval: "weekly"
     groups:
-      minor:
+      cargo-minor:
         update-types:
           - minor
           - patch
+    cooldown:
+      default-days: 7
 
   - package-ecosystem: "pre-commit"
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      pre-commit-minor:
+        update-types:
+          - minor
+          - patch
+    cooldown:
+      default-days: 7
 
   - package-ecosystem: "github-actions"
     # Workflow files stored in the default location of `.github/workflows`. (You don't need to specify `/.github/workflows` for `directory`. You can use `directory: "/"`.)
@@ -26,6 +35,8 @@ updates:
     schedule:
       interval: "weekly"
     groups:
-      all:
+      actions-all:
         patterns:
           - "*"
+    cooldown:
+      default-days: 7
