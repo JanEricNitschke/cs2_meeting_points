@@ -28,7 +28,7 @@ jobs:
       run:
         working-directory: main/awpy
     outputs:
-      updateNeeded: ${{ steps.check_time.outputs.requiresUpdate }}
+      updateNeeded: ${{ steps.check_time.outputs.requiresUpdate == 'true' && fromJSON(steps.get-maps.outputs.mapNamesToUpdate || '[]').length > 0 }}
       mapNamesToUpdate: ${{ steps.get-maps.outputs.mapNamesToUpdate || '[]' }} # Define the output
     steps:
       - name: Checkout this repo
@@ -148,6 +148,32 @@ jobs:
         with:
           name: time-artifact
           path: main/scripts/last_run_time.txt
+
+      - name: Write summary
+        if: always()
+        run: |
+          {
+            echo "## 📊 Workflow decision"
+            echo ""
+
+            if ("${{ steps.check_time.outputs.requiresUpdate }}" -ne "true") {
+              echo "💤 No update required"
+              echo ""
+              echo "- Skipping entire pipeline"
+            }
+            elseif ((ConvertFrom-Json '${{ steps.get-maps.outputs.mapNamesToUpdate || '[]' }}').Length -eq 0) {
+              echo "💤 No maps needed updating"
+              echo ""
+              echo "- Update check passed"
+              echo "- No maps require regeneration"
+            }
+            else {
+              echo "✅ Updates required"
+              echo ""
+              echo "Maps to process:"
+              echo '${{ steps.get-maps.outputs.mapNamesToUpdate }}'
+            }
+          } > $env:GITHUB_STEP_SUMMARY
 
 
   generate-plots:
