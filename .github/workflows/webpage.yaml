@@ -152,7 +152,7 @@ jobs:
       - name: Write summary
         if: always()
         run: |
-          {
+          & {
             echo "## 📊 Workflow decision"
             echo ""
 
@@ -173,7 +173,7 @@ jobs:
               echo "Maps to process:"
               echo '${{ steps.get-maps.outputs.mapNamesToUpdate }}'
             }
-          } > $env:GITHUB_STEP_SUMMARY
+          } >> $env:GITHUB_STEP_SUMMARY
 
 
   generate-plots:
