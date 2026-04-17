@@ -28,7 +28,8 @@ jobs:
       run:
         working-directory: main/awpy
     outputs:
-      updateNeeded: ${{ steps.check_time.outputs.requiresUpdate == 'true' && fromJSON(steps.get-maps.outputs.mapNamesToUpdate || '[]').length > 0 }}
+      sourceChanged: ${{ steps.check_time.outputs.sourceChanged == 'true' }}
+      updateNeeded: ${{ steps.check_time.outputs.sourceChanged == 'true' && fromJSON(steps.get-maps.outputs.mapNamesToUpdate || '[]').length > 0 }}
       mapNamesToUpdate: ${{ steps.get-maps.outputs.mapNamesToUpdate || '[]' }} # Define the output
     steps:
       - name: Checkout this repo
@@ -69,48 +70,48 @@ jobs:
           PYTHONIOENCODING: "utf-8"
         run: |
           # Run the update script and capture its output (expected "true" or "false")
-          $requiresUpdate = uv run -q --with vdf ../scripts/check_regeneration_needed.py ../scripts/last_run_time.txt
-          echo "requiresUpdate=$requiresUpdate" >> $env:GITHUB_OUTPUT
+          $sourceChanged = uv run -q --with vdf ../scripts/check_regeneration_needed.py ../scripts/last_run_time.txt
+          echo "sourceChanged=$sourceChanged" >> $env:GITHUB_OUTPUT
 
       - name: Install Counter-Strike 2
-        if: steps.check_time.outputs.requiresUpdate == 'true'
+        if: steps.check_time.outputs.sourceChanged == 'true'
         run: |
           $csDir = Join-Path (Get-Location) "cs_go"
           steamcmd +force_install_dir $csDir +login anonymous +app_update ${{ env.CS2_APP_ID }} +quit
 
       - name: Install Source2Viewer-CLI
-        if: steps.check_time.outputs.requiresUpdate == 'true'
+        if: steps.check_time.outputs.sourceChanged == 'true'
         run: |
           Invoke-WebRequest -Uri $env:SOURCE2_VIEWER_URL -OutFile ".\cli-windows-x64.zip"
           Expand-Archive -Path .\cli-windows-x64.zip -DestinationPath . -Force
 
       - name: Generate Triangles
-        if: steps.check_time.outputs.requiresUpdate == 'true'
+        if: steps.check_time.outputs.sourceChanged == 'true'
         run: |
           Get-ChildItem -Force
           .\scripts\generate-tris.ps1 -inputPath "cs_go\game\csgo\maps"
 
       - name: Generate Map Data
-        if: steps.check_time.outputs.requiresUpdate == 'true'
+        if: steps.check_time.outputs.sourceChanged == 'true'
         run: |
           Get-ChildItem -Force
           .\scripts\generate-maps.ps1 -inputPath "cs_go\game\csgo"
 
       - name: Generate Nav
-        if: steps.check_time.outputs.requiresUpdate == 'true'
+        if: steps.check_time.outputs.sourceChanged == 'true'
         run: |
           Get-ChildItem -Force
           .\scripts\generate-navs.ps1 -inputPath "cs_go\game\csgo\maps"
 
       - name: Generate Spawns
-        if: steps.check_time.outputs.requiresUpdate == 'true'
+        if: steps.check_time.outputs.sourceChanged == 'true'
         run: |
           Get-ChildItem -Force
           .\scripts\generate-spawns.ps1 -inputPath "cs_go\game\csgo\maps"
 
       - name: Get map names
         id: get-maps
-        if: steps.check_time.outputs.requiresUpdate == 'true'
+        if: steps.check_time.outputs.sourceChanged == 'true'
         run: |
           Get-ChildItem -Force
           mv awpy/maps/ .
@@ -125,7 +126,7 @@ jobs:
         working-directory: main
 
       - name: Upload map files
-        if: steps.check_time.outputs.requiresUpdate == 'true'
+        if: steps.check_time.outputs.sourceChanged == 'true'
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: map-artifacts
@@ -136,14 +137,14 @@ jobs:
             main/spawns
 
       - name: Upload map hashes
-        if: steps.check_time.outputs.requiresUpdate == 'true'
+        if: steps.check_time.outputs.sourceChanged == 'true'
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: hash-artifacts
           path: main/hashes/*.txt
 
       - name: Upload last updated time
-        if: steps.check_time.outputs.requiresUpdate == 'true'
+        if: steps.check_time.outputs.sourceChanged == 'true'
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
           name: time-artifact
@@ -156,7 +157,7 @@ jobs:
             echo "## 📊 Workflow decision"
             echo ""
 
-            if ("${{ steps.check_time.outputs.requiresUpdate }}" -ne "true") {
+            if ("${{ steps.check_time.outputs.sourceChanged }}" -ne "true") {
               echo "💤 No update required"
               echo ""
               echo "- Skipping entire pipeline"
@@ -195,7 +196,7 @@ jobs:
 
   update-last-changed:
     needs: [ generate-plots, get-map-files ]
-    if: needs.get-map-files.outputs.updateNeeded == 'true'
+    if: needs.get-map-files.outputs.sourceChanged == 'true' && (needs.generate-plots.result == 'success' || needs.generate-plots.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
