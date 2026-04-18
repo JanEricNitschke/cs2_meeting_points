@@ -176,7 +176,6 @@ jobs:
             }
           } >> $env:GITHUB_STEP_SUMMARY
 
-
   generate-plots:
     needs: get-map-files
     if: needs.get-map-files.outputs.updateNeeded == 'true'
@@ -193,10 +192,9 @@ jobs:
     permissions:
       contents: write
 
-
   update-last-changed:
-    needs: [ generate-plots, get-map-files ]
-    if: needs.get-map-files.outputs.sourceChanged == 'true' && (needs.generate-plots.result == 'success' || needs.generate-plots.result == 'skipped')
+    needs: [generate-plots, get-map-files]
+    if: ${{ always() && needs.get-map-files.result == 'success' && needs.get-map-files.outputs.sourceChanged == 'true' && (needs.generate-plots.result == 'success' || needs.generate-plots.result == 'skipped') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -227,7 +225,7 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    needs: [ update-last-changed, get-map-files ]
+    needs: [update-last-changed, get-map-files]
     if: needs.get-map-files.outputs.updateNeeded == 'true'
     runs-on: ubuntu-latest
     # Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
@@ -245,7 +243,7 @@ jobs:
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           # Upload entire repository
-          path: '.'
+          path: "."
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0
