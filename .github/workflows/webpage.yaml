@@ -121,6 +121,7 @@ jobs:
           Get-ChildItem -Force
           cargo build --release
           $mapNamesToUpdate = ./target/release/cs2_meeting_points process-maps
+          $mapNamesToUpdate = $mapNamesToUpdate.Trim()
           echo $mapNamesToUpdate
           echo "mapNamesToUpdate=$mapNamesToUpdate" >> $env:GITHUB_OUTPUT
         working-directory: main
