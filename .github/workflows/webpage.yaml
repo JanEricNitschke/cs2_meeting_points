@@ -178,7 +178,7 @@ jobs:
 
   generate-plots:
     needs: get-map-files
-    if: needs.get-map-files.outputs.updateNeeded == 'true'
+    if: needs.get-map-files.outputs.updateNeeded
     strategy:
       fail-fast: false
       matrix:
@@ -194,7 +194,7 @@ jobs:
 
   update-last-changed:
     needs: [generate-plots, get-map-files]
-    if: ${{ always() && needs.get-map-files.result == 'success' && needs.get-map-files.outputs.sourceChanged == 'true' && (needs.generate-plots.result == 'success' || needs.generate-plots.result == 'skipped') }}
+    if: ${{ always() && needs.get-map-files.result == 'success' && needs.get-map-files.outputs.sourceChanged && (needs.generate-plots.result == 'success' || needs.generate-plots.result == 'skipped') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -226,7 +226,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     needs: [update-last-changed, get-map-files]
-    if: needs.get-map-files.outputs.updateNeeded == 'true'
+    if: needs.get-map-files.outputs.updateNeeded
     runs-on: ubuntu-latest
     # Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
     # However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
