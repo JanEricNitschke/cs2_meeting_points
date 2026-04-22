@@ -24,7 +24,7 @@ jobs:
             !/spread_images/
           sparse-checkout-cone-mode: false
       - name: Set up Rust
-        uses: actions-rust-lang/setup-rust-toolchain@150fca883cd4034361b621bd4e6a9d34e5143606 # v1.15.4
+        uses: actions-rust-lang/setup-rust-toolchain@2b1f5e9b395427c92ee4e3331786ca3c37afe2d7 # v1.16.0
       - name: Build
         run: |
           cargo build --verbose
@@ -44,7 +44,7 @@ jobs:
         run: cargo test --verbose
       - name: Upload test images on failure
         if: failure()
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: test-images
           path: spread_images/test_good/
