@@ -76,6 +76,7 @@ jobs:
         run: |
           ls -l --block-size=M
           ls -l --block-size=M results
+          rm -f spread_images/${{ inputs.map-name }}/*.png
           uv run -q --no-project --with tqdm --with matplotlib --with numpy --with pillow scripts/plot_spread.py ${{ inputs.map-name }}
       - uses: FedericoCarboni/setup-ffmpeg@37062fbf7149fc5578d6c57e08aed62458b375d6 # v3.1
         id: setup-ffmpeg
@@ -116,7 +117,7 @@ jobs:
 
             # ------------------------------------------------------------------
             # stage *all* artefacts in one go
-            git add \
+            git add -A \
               spread_images/${{ inputs.map-name }}/ \
               spread_gifs/${{ inputs.map-name }}/ \
               hashes/${{ inputs.map-name }}.txt \
