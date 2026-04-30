@@ -17,7 +17,7 @@
     }
 
     #gifContainer img {
-      max-width: 400px;
+      max-width: 900px;
     }
 
     #galleryContainer {
@@ -4956,8 +4956,22 @@
     }
 
     mapSelect.addEventListener("change", (e) => {
-      loadGallery(e.target.value);
+      window.location.hash = e.target.value;
     });
+
+    window.addEventListener("hashchange", () => {
+      const mapName = window.location.hash.slice(1);
+      if (mapName && galleryData[mapName]) {
+        mapSelect.value = mapName;
+        loadGallery(mapName);
+      }
+    });
+
+    const initialMap = window.location.hash.slice(1);
+    if (initialMap && galleryData[initialMap]) {
+      mapSelect.value = initialMap;
+      loadGallery(initialMap);
+    }
   </script>
 </body>
 
