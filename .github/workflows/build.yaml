@@ -24,7 +24,7 @@ jobs:
             !/spread_images/
           sparse-checkout-cone-mode: false
       - name: Set up Rust
-        uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # v1.16.1
+        uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
       - name: Build
         run: |
           cargo build --verbose
