@@ -194,6 +194,7 @@ fn main() {
                 "ar_shoots_night",
                 "ar_baggage",
                 "ar_pool_day",
+                "de_eldorado",
                 "de_palais",
                 "de_poseidon",
                 "de_rooftop",

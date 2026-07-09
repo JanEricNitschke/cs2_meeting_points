@@ -31,7 +31,7 @@ JUMP_HEIGHT = 66.02
 class DynamicAttributeFlags(int):
     """A custom integer class for dynamic attribute flags."""
 
-    def __new__(cls, value: Any) -> "DynamicAttributeFlags":  # noqa: ANN401
+    def __new__(cls, value: Any) -> Self:  # noqa: ANN401
         """Creates a new DynamicAttributeFlags instance.
 
         Args:
@@ -523,6 +523,7 @@ def plot_spread_from_input(map_name: str, style: MeetingStyle) -> None:
         "ar_shoots_night",
         "ar_baggage",
         "ar_pool_day",
+        "de_eldorado",
         "de_palais",
         "de_poseidon",
         "de_rooftop",
