@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout this repo
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           sparse-checkout: |
             /*
@@ -54,7 +54,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout this repo
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set Swap Space
         uses: pierotofy/set-swap-space@fc79b3f67fa8a838184ce84a674ca12238d2c761  # master
         with:
@@ -69,7 +69,7 @@ jobs:
           name: results-${{ inputs.map-name }}
           path: results
       - name: Install uv
-        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
       - name: Set up Python
         run: uv python install ${{ inputs.python-version }}
       - name: Generate plots
