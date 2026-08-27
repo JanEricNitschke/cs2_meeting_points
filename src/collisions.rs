@@ -224,8 +224,8 @@ impl CollisionChecker {
                 let offset = i * 36;
                 let slice = &buffer[offset..offset + 36];
                 let mut values = [0f32; 9];
-                for (i, chunk) in slice.chunks_exact(4).enumerate() {
-                    values[i] = f32::from_ne_bytes(chunk.try_into().unwrap());
+                for (i, chunk) in slice.as_chunks::<4>().0.iter().enumerate() {
+                    values[i] = f32::from_ne_bytes(*chunk);
                 }
                 triangles.push(Triangle {
                     p1: Position::new(
