@@ -20,7 +20,8 @@ use petgraph::graphmap::DiGraphMap;
 use petgraph::visit::EdgeRef;
 use pyo3::exceptions::{PyException, PyFileNotFoundError};
 use pyo3::{
-    FromPyObject, IntoPyObject, PyErr, PyResult, create_exception, pyclass, pyfunction, pymethods,
+    Borrowed, FromPyObject, IntoPyObject, PyAny, PyErr, PyResult, create_exception, pyclass,
+    pyfunction, pymethods,
 };
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use rustc_hash::FxHashMap as HashMap;
@@ -29,7 +30,6 @@ use serde::de::{self, MapAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize};
 use simple_tqdm::{Config, ParTqdm, Tqdm};
 use std::cmp::Ordering;
-use std::f64;
 use std::fmt;
 use std::fs::File;
 use std::hash::Hash;
@@ -37,9 +37,17 @@ use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 
 // --- DynamicAttributeFlags ---
-#[pyclass(eq, module = "cs2_nav", from_py_object)]
+#[pyclass(eq, module = "cs2_nav", skip_from_py_object)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
 pub struct DynamicAttributeFlags(i64);
+
+impl<'a, 'py> FromPyObject<'a, 'py> for DynamicAttributeFlags {
+    type Error = PyErr;
+
+    fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
+        Ok(*obj.cast::<Self>()?.borrow())
+    }
+}
 
 #[pymethods]
 impl DynamicAttributeFlags {
