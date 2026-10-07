@@ -2,7 +2,6 @@
 use crate::nav::{AreaIdent, AreaLike, GroupId, Nav, NavArea, PathResult, areas_audible};
 use crate::position::Position;
 use crate::utils::create_file_with_parents;
-use core::f64;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use rayon::prelude::ParallelSliceMut;
 use rustc_hash::FxHashMap as HashMap;

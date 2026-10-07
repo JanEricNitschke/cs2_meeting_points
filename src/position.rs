@@ -1,11 +1,14 @@
 use crate::constants::{CROUCH_JUMP_HEIGHT_GAIN, GRAVITY, PLAYER_WIDTH, RUNNING_SPEED, jump_speed};
 
 use geo::geometry::Point;
-use pyo3::{FromPyObject, Py, PyRef, PyRefMut, PyResult, pyclass, pyfunction, pymethods};
+use pyo3::{
+    Borrowed, FromPyObject, Py, PyAny, PyErr, PyRef, PyRefMut, PyResult, pyclass, pyfunction,
+    pymethods,
+};
 use serde::{Deserialize, Serialize};
 use std::ops::{Add, Div, Mul, Sub};
 
-#[pyclass(eq, module = "cs2_nav", from_py_object)]
+#[pyclass(eq, module = "cs2_nav", skip_from_py_object)]
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Position {
     #[pyo3(get, set)]
@@ -14,6 +17,14 @@ pub struct Position {
     pub y: f64,
     #[pyo3(get, set)]
     pub z: f64,
+}
+
+impl<'a, 'py> FromPyObject<'a, 'py> for Position {
+    type Error = PyErr;
+
+    fn extract(obj: Borrowed<'a, 'py, PyAny>) -> Result<Self, Self::Error> {
+        Ok(*obj.cast::<Self>()?.borrow())
+    }
 }
 
 impl Position {
