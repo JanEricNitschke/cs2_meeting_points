@@ -13,6 +13,10 @@ env:
 
 jobs:
   build:
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain: [stable, beta]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
@@ -25,6 +29,8 @@ jobs:
           sparse-checkout-cone-mode: false
       - name: Set up Rust
         uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f # v2.0.0
+        with:
+          toolchain: ${{ matrix.toolchain }}
       - name: Build
         run: |
           cargo build --verbose
