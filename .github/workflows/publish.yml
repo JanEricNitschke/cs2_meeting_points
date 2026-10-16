@@ -84,6 +84,7 @@ jobs:
         run: |
           git config user.name "$GIT_AUTHOR_NAME"
           git config user.email "${GIT_AUTHOR_ID}+${GIT_AUTHOR_NAME}@users.noreply.github.com"
+          git ls-files -z spread_gifs spread_images | git update-index -z --assume-unchanged --stdin
           cargo install cargo-release --locked
           cargo release ${{ inputs.bump }} --no-publish --no-confirm --execute
 
