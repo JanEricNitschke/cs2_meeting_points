@@ -11,7 +11,6 @@ keywords = ["CS2", "visualization"]
 categories = ["visualization"]
 include = [
     "/src",
-    "/tests",
     "/Cargo.toml",
     "/pyproject.toml",
     "/README.md",
