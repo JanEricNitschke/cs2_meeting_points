@@ -238,7 +238,7 @@ jobs:
         with:
           toolchain: stable
       # Not used by the containerized build; kept to match `maturin generate-ci` output
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: 3.x
       - name: Build wheels
@@ -278,7 +278,7 @@ jobs:
             !/spread_images/
           sparse-checkout-cone-mode: false
       # Not used by the containerized build; kept to match `maturin generate-ci` output
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: 3.x
       - uses: dtolnay/rust-toolchain@stable
@@ -321,7 +321,7 @@ jobs:
             !/spread_gifs/
             !/spread_images/
           sparse-checkout-cone-mode: false
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ matrix.platform.python_arch == 'arm64' && env.CPYTHON_VERSIONS_WIN_ARM64 || env.CPYTHON_VERSIONS }}
           architecture: ${{ matrix.platform.python_arch }}
@@ -359,7 +359,7 @@ jobs:
             !/spread_gifs/
             !/spread_images/
           sparse-checkout-cone-mode: false
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ env.CPYTHON_VERSIONS }}
       - uses: dtolnay/rust-toolchain@stable
@@ -410,7 +410,7 @@ jobs:
         with:
           version: ${{ env.EMSCRIPTEN_VERSION }}
           actions-cache-folder: emsdk-cache
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - run: pip install pyodide-build
