@@ -181,7 +181,7 @@ pub enum BVHNodeKind {
 }
 
 /// Collision checker using a Bounding Volume Hierarchy tree.
-#[pyclass(name = "VisibilityChecker", module = "cs2_nav", skip_from_py_object)]
+#[pyclass(name = "VisibilityChecker", module = "cs2_nav")]
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CollisionChecker {
     #[pyo3(get)]
