@@ -164,8 +164,18 @@ pub fn get_distances_from_spawns(map_areas: &Nav, spawns: &Spawns) -> SpawnDista
         t_distances.push(t);
     }
 
-    ct_distances.par_sort_unstable_by(|a, b| a.distance.partial_cmp(&b.distance).unwrap());
-    t_distances.par_sort_unstable_by(|a, b| a.distance.partial_cmp(&b.distance).unwrap());
+    ct_distances.par_sort_unstable_by(|a, b| {
+        a.distance
+            .partial_cmp(&b.distance)
+            .unwrap()
+            .then_with(|| a.area.area_id.cmp(&b.area.area_id))
+    });
+    t_distances.par_sort_unstable_by(|a, b| {
+        a.distance
+            .partial_cmp(&b.distance)
+            .unwrap()
+            .then_with(|| a.area.area_id.cmp(&b.area.area_id))
+    });
 
     SpawnDistances {
         CT: ct_distances,
